@@ -37,6 +37,12 @@ export function Home() {
           </li>
         ))}
       </ul>
+
+      <p style={{ marginTop: 32 }}>
+        <Link to="/author" style={{ color: "#6b7280", fontSize: 13 }}>
+          Modo Autor →
+        </Link>
+      </p>
     </div>
   );
 }
