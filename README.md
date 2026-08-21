@@ -7,6 +7,32 @@ escala real, e exporte o resultado como mapa de assentamento.
 Veja [PLANNING.md](./PLANNING.md) para o desenho do produto e das decisões de
 arquitetura.
 
+## A ideia por trás do projeto
+
+Surgiu de uma obra de verdade. Numa construção em andamento, apareceu a
+possibilidade de reaproveitar telhas de barro — em vez de simplesmente
+descartar o material, dava pra reusar de um jeito criativo. Isso puxou
+referências de mosaicos feitos com seções desse tipo de telha: fatias
+cortadas, recompostas num desenho novo.
+
+Daí veio a ideia central do projeto: em vez de eu (ou um profissional
+qualquer) simplesmente definir a paginação sozinho, e se os filhos da
+família dona da casa participassem? Que eles montassem o mosaico — mexendo,
+girando, experimentando as peças numa tela — e o resultado dessa brincadeira
+virasse, de verdade, o desenho aplicado na casa deles.
+
+A ideia é simples mas o efeito não é pequeno: a criança exercita a
+criatividade construindo algo digitalmente, e depois vê aquilo que ela
+mesma desenhou virar parte física, permanente, da própria casa — um pedaço
+do lar que ela literalmente ajudou a criar. Um jeito de aumentar o senso de
+pertencimento através de algo concreto, não só de um gesto simbólico.
+
+O Paginazilla é a ferramenta que viabiliza isso: o adulto responsável
+("Modo Autor") prepara o cenário — planta, escala real, materiais — e
+qualquer pessoa da família, inclusive as crianças, pode entrar e brincar de
+montar o mosaico, sabendo que aquele desenho vai sair da tela e ir pra
+parede ou pro chão de verdade.
+
 ## Desenvolvimento
 
 ```bash
@@ -59,15 +85,38 @@ navegador, sem backend).
 
 ### Removendo um cenário
 
-`bundles/` é só staging pra publicar — tirar o `.zip` de lá **não** remove
-o que já foi publicado. Pra remover de verdade:
+Um cenário publicado existe em dois lugares só: a pasta
+`public/scenarios/<id>/` (imagens + `manifest.json`) e a entrada dele em
+`public/scenarios/index.json` (o que faz aparecer na home). `bundles/` é
+só uma área de rascunho usada na hora de publicar — depois que
+`npm run publish` roda, o `.zip` já cumpriu seu papel; apagá-lo dali **não**
+desfaz o que já foi publicado, porque a fonte da verdade não é mais ele.
+
+Pra remover de fato:
 
 ```bash
 node scripts/remove-scenario.mjs <id> --push
 ```
 
-(sem `--push`, só apaga localmente — dá pra revisar antes de commitar, como
-no fluxo de publicação). Rodar sem `<id>` lista os cenários publicados.
+Isso faz, em ordem:
+
+1. Apaga a pasta inteira `public/scenarios/<id>/`.
+2. Tira a entrada `{ "id": "<id>", ... }` de `index.json`.
+3. (só com `--push`) `git add` + commit ("Remove cenário: `<id>`") + push —
+   o GitHub Actions rebuilda o site sem esse cenário: ele some da home e a
+   URL `/cenario/<id>` volta a dar 404.
+
+Sem `--push`, para no passo 2 — as mudanças ficam só localmente, pra você
+revisar e commitar manualmente quando quiser (mesma lógica do
+`publish-bundles` sem `--push`).
+
+Não lembra o id exato? Roda sem argumento nenhum:
+
+```bash
+node scripts/remove-scenario.mjs
+```
+
+e ele lista todos os cenários publicados atualmente.
 
 ## Deploy (GitHub Pages)
 
