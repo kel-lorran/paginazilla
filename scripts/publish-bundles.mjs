@@ -3,20 +3,23 @@
  * Extrai todos os .zip de bundles/ (exportados pelo Modo Autor) para
  * public/scenarios/<id>/ e atualiza public/scenarios/index.json.
  *
- * Uso: npm run publish-bundles
- * Depois: git add public/scenarios, commit e push (o deploy no GitHub
- * Pages roda automático via Actions).
+ * Uso:
+ *   npm run publish-bundles        # só extrai e atualiza os arquivos locais
+ *   npm run publish                # extrai + git add + commit + push (dispara o deploy)
  */
 import { readFile, writeFile, mkdir, readdir, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import JSZip from "jszip";
+import { commitAndPush } from "./lib/git.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BUNDLES_DIR = path.join(ROOT, "bundles");
 const SCENARIOS_DIR = path.join(ROOT, "public", "scenarios");
 const INDEX_PATH = path.join(SCENARIOS_DIR, "index.json");
+
+const shouldPush = process.argv.includes("--push");
 
 async function loadIndex() {
   if (!existsSync(INDEX_PATH)) return [];
@@ -77,15 +80,26 @@ async function main() {
 
   const index = await loadIndex();
   const byId = new Map(index.map((s) => [s.id, s]));
+  const publishedNow = [];
 
   for (const file of files) {
     const result = await publishBundle(path.join(BUNDLES_DIR, file));
-    if (result) byId.set(result.id, result);
+    if (result) {
+      byId.set(result.id, result);
+      publishedNow.push(result);
+    }
   }
 
   await saveIndex(Array.from(byId.values()));
   console.log(`\npublic/scenarios/index.json atualizado — ${byId.size} cenário(s) no total.`);
-  console.log("Próximo passo: git add public/scenarios && git commit && git push");
+
+  if (shouldPush) {
+    const summary = publishedNow.map((p) => p.name || p.id).join(", ");
+    commitAndPush(ROOT, "public/scenarios", `Publica cenário(s): ${summary}`);
+  } else {
+    console.log("Próximo passo: git add public/scenarios && git commit && git push");
+    console.log("(ou rode `npm run publish` da próxima vez pra fazer isso automático)");
+  }
 }
 
 main().catch((err) => {

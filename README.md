@@ -43,16 +43,31 @@ navegador, sem backend).
 
 ### Publicando um cenário
 
-1. Mova o `.zip` baixado pra pasta `bundles/` na raiz do projeto.
+1. Mova o `.zip` baixado pra pasta `bundles/` na raiz do projeto (pode
+   colocar vários de uma vez).
 2. Rode:
    ```bash
-   npm run publish-bundles
+   npm run publish        # extrai + atualiza index.json + commit + push, tudo de uma vez
    ```
-   Isso extrai todo `.zip` de `bundles/` pra `public/scenarios/<id>/` e
-   atualiza `public/scenarios/index.json` automaticamente (processa vários
-   de uma vez).
-3. `git add public/scenarios && git commit && git push` — o deploy no
-   GitHub Pages roda sozinho via Actions.
+   Ou, se preferir revisar antes de commitar:
+   ```bash
+   npm run publish-bundles           # só extrai e atualiza os arquivos locais
+   git add public/scenarios && git commit && git push   # feito manualmente depois
+   ```
+   Se não houver nada novo (bundle já publicado, sem mudanças), `npm run
+   publish` não commita nem dá push — só avisa que não tinha nada a fazer.
+
+### Removendo um cenário
+
+`bundles/` é só staging pra publicar — tirar o `.zip` de lá **não** remove
+o que já foi publicado. Pra remover de verdade:
+
+```bash
+node scripts/remove-scenario.mjs <id> --push
+```
+
+(sem `--push`, só apaga localmente — dá pra revisar antes de commitar, como
+no fluxo de publicação). Rodar sem `<id>` lista os cenários publicados.
 
 ## Deploy (GitHub Pages)
 

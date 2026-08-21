@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "publish-bundles": "node scripts/publish-bundles.mjs"
+    "publish-bundles": "node scripts/publish-bundles.mjs",
+    "publish": "node scripts/publish-bundles.mjs --push",
+    "remove-scenario": "node scripts/remove-scenario.mjs"
   },
   "dependencies": {
     "idb": "^8.0.3",
