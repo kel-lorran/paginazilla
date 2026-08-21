@@ -20,6 +20,7 @@ interface PieceProps {
   onDragEnd: (x: number, y: number) => void;
   onRotate: () => void;
   onMirror: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
 }
 
@@ -41,6 +42,7 @@ export function Piece({
   onDragEnd,
   onRotate,
   onMirror,
+  onDuplicate,
   onDelete,
 }: PieceProps) {
   const [image] = useImage(material.imageUrl);
@@ -97,7 +99,8 @@ export function Piece({
         >
           <ToolbarButton index={0} label="⟳" onClick={onRotate} />
           <ToolbarButton index={1} label="⇄" onClick={onMirror} />
-          <ToolbarButton index={2} label="✕" onClick={onDelete} variant="danger" />
+          <ToolbarButton index={2} label="⧉" onClick={onDuplicate} />
+          <ToolbarButton index={3} label="✕" onClick={onDelete} variant="danger" />
         </Group>
       )}
     </Group>

@@ -22,6 +22,20 @@ import type { Material, MosaicProgress, PieceInstance, Point, Scenario, Viewport
 
 const SNAP_THRESHOLD_SCREEN_PX = 8;
 const DEFAULT_GRID_SPACING_CM = 25;
+const ARROW_STEP_FINE_CM = 0.1;
+const ARROW_STEP_COARSE_CM = 1;
+const DUPLICATE_OFFSET_CM = 5;
+
+function cloneWithOffset(source: PieceInstance[], offsetPx: number): PieceInstance[] {
+  return source.map((p) => ({
+    id: uuid(),
+    materialId: p.materialId,
+    x: p.x + offsetPx,
+    y: p.y + offsetPx,
+    rotationDeg: p.rotationDeg,
+    mirrored: p.mirrored,
+  }));
+}
 
 export function ScenarioView() {
   const { scenarioId = "" } = useParams();
@@ -42,6 +56,13 @@ export function ScenarioView() {
   });
 
   const dragStartRef = useRef<Record<string, Point>>({});
+  const piecesRef = useRef<PieceInstance[]>(pieces);
+  const clipboardRef = useRef<PieceInstance[]>([]);
+  const pasteCountRef = useRef(0);
+
+  useEffect(() => {
+    piecesRef.current = pieces;
+  }, [pieces]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,15 +108,56 @@ export function ScenarioView() {
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement | null;
       if (target && ["INPUT", "TEXTAREA"].includes(target.tagName)) return;
+
       if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.size > 0) {
         e.preventDefault();
         deletePieces(selectedIds);
+        return;
+      }
+
+      const arrowDeltas: Record<string, Point> = {
+        ArrowUp: { x: 0, y: -1 },
+        ArrowDown: { x: 0, y: 1 },
+        ArrowLeft: { x: -1, y: 0 },
+        ArrowRight: { x: 1, y: 0 },
+      };
+      const arrowDelta = arrowDeltas[e.key];
+      if (arrowDelta && selectedIds.size > 0 && scenario) {
+        e.preventDefault();
+        const stepCm = e.shiftKey ? ARROW_STEP_COARSE_CM : ARROW_STEP_FINE_CM;
+        const stepPx = cmToPixels(stepCm, scenario.scaleCalibration);
+        const dx = arrowDelta.x * stepPx;
+        const dy = arrowDelta.y * stepPx;
+        setPieces((prev) =>
+          prev.map((p) => (selectedIds.has(p.id) ? { ...p, x: p.x + dx, y: p.y + dy } : p)),
+        );
+        return;
+      }
+
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      if (isCtrlOrCmd && e.key.toLowerCase() === "c" && selectedIds.size > 0) {
+        e.preventDefault();
+        clipboardRef.current = piecesRef.current.filter((p) => selectedIds.has(p.id));
+        pasteCountRef.current = 0;
+        return;
+      }
+      if (isCtrlOrCmd && e.key.toLowerCase() === "v" && scenario) {
+        if (clipboardRef.current.length === 0) return;
+        e.preventDefault();
+        pasteCountRef.current += 1;
+        const offsetPx = cmToPixels(
+          DUPLICATE_OFFSET_CM * pasteCountRef.current,
+          scenario.scaleCalibration,
+        );
+        const clones = cloneWithOffset(clipboardRef.current, offsetPx);
+        setPieces((prev) => [...prev, ...clones]);
+        setSelectedIds(new Set(clones.map((c) => c.id)));
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedIds]);
+  }, [selectedIds, scenario]);
 
   function handleAddMaterial(material: Material) {
     if (!scenario) return;
@@ -247,6 +309,15 @@ export function ScenarioView() {
     );
   }
 
+  function handleDuplicateSelected() {
+    const source = selectedPieces();
+    if (source.length === 0 || !scenario) return;
+    const offsetPx = cmToPixels(DUPLICATE_OFFSET_CM, scenario.scaleCalibration);
+    const clones = cloneWithOffset(source, offsetPx);
+    setPieces((prev) => [...prev, ...clones]);
+    setSelectedIds(new Set(clones.map((c) => c.id)));
+  }
+
   function handleSaveClick() {
     saveProgress(buildProgressRecord());
     setSaveLabel("Salvo ✓");
@@ -349,6 +420,7 @@ export function ScenarioView() {
                   })
                 }
                 onMirror={() => updatePiece(piece.id, { mirrored: !piece.mirrored })}
+                onDuplicate={handleDuplicateSelected}
                 onDelete={() => deletePieces(new Set([piece.id]))}
               />
             );
@@ -368,6 +440,7 @@ export function ScenarioView() {
               inverseScale={1 / viewport.scale}
               onRotate={handleGroupRotate}
               onMirror={handleGroupMirror}
+              onDuplicate={handleDuplicateSelected}
               onDelete={() => deletePieces(selectedIds)}
             />
           )}
