@@ -1,10 +1,17 @@
-import { Stage, Layer } from "react-konva";
+import { Stage, Layer, Rect } from "react-konva";
 import type Konva from "konva";
-import type { ReactNode, RefObject } from "react";
+import { useEffect, useState, type ReactNode, type RefObject } from "react";
 import type { Point, Viewport } from "../../types";
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
+
+export interface SelectionRect {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
 
 interface PlanCanvasProps {
   width: number;
@@ -13,6 +20,8 @@ interface PlanCanvasProps {
   onViewportChange: (viewport: Viewport) => void;
   /** Clique no fundo (fora de qualquer peça), já convertido pro espaço de coordenadas da planta. */
   onBackgroundClick?: (point: Point) => void;
+  /** Shift + clique-e-arraste no fundo — janela de seleção, em coordenadas da planta. */
+  onSelectionRectEnd?: (rect: SelectionRect) => void;
   stageRef: RefObject<Konva.Stage | null>;
   children: ReactNode;
 }
@@ -23,9 +32,40 @@ export function PlanCanvas({
   viewport,
   onViewportChange,
   onBackgroundClick,
+  onSelectionRectEnd,
   stageRef,
   children,
 }: PlanCanvasProps) {
+  const [shiftHeld, setShiftHeld] = useState(false);
+  const [selectionDrag, setSelectionDrag] = useState<{ start: Point; current: Point } | null>(
+    null,
+  );
+
+  const selectionEnabled = Boolean(onSelectionRectEnd);
+
+  useEffect(() => {
+    if (!selectionEnabled) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Shift") setShiftHeld(true);
+    }
+    function handleKeyUp(e: KeyboardEvent) {
+      if (e.key === "Shift") setShiftHeld(false);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [selectionEnabled]);
+
+  function toImagePoint(pointer: { x: number; y: number }): Point {
+    return {
+      x: (pointer.x - viewport.x) / viewport.scale,
+      y: (pointer.y - viewport.y) / viewport.scale,
+    };
+  }
+
   function handleWheel(e: Konva.KonvaEventObject<WheelEvent>) {
     e.evt.preventDefault();
     const stage = stageRef.current;
@@ -58,6 +98,39 @@ export function PlanCanvas({
     onViewportChange({ ...viewport, x: e.target.x(), y: e.target.y() });
   }
 
+  function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent>) {
+    if (e.target !== stageRef.current) return;
+    const pointer = e.target.getPointerPosition();
+    if (!pointer) return;
+    const imagePoint = toImagePoint(pointer);
+
+    if (shiftHeld && selectionEnabled) {
+      setSelectionDrag({ start: imagePoint, current: imagePoint });
+      return;
+    }
+    onBackgroundClick?.(imagePoint);
+  }
+
+  function handleMouseMove() {
+    if (!selectionDrag) return;
+    const stage = stageRef.current;
+    const pointer = stage?.getPointerPosition();
+    if (!pointer) return;
+    setSelectionDrag((prev) => (prev ? { ...prev, current: toImagePoint(pointer) } : prev));
+  }
+
+  function handleMouseUp() {
+    if (!selectionDrag) return;
+    const { start, current } = selectionDrag;
+    setSelectionDrag(null);
+    onSelectionRectEnd?.({
+      x1: Math.min(start.x, current.x),
+      y1: Math.min(start.y, current.y),
+      x2: Math.max(start.x, current.x),
+      y2: Math.max(start.y, current.y),
+    });
+  }
+
   return (
     <Stage
       ref={stageRef}
@@ -67,20 +140,28 @@ export function PlanCanvas({
       y={viewport.y}
       scaleX={viewport.scale}
       scaleY={viewport.scale}
-      draggable
+      draggable={!(shiftHeld && selectionEnabled)}
       onWheel={handleWheel}
       onDragEnd={handleDragEnd}
-      onMouseDown={(e) => {
-        if (e.target !== stageRef.current || !onBackgroundClick) return;
-        const pointer = e.target.getPointerPosition();
-        if (!pointer) return;
-        onBackgroundClick({
-          x: (pointer.x - viewport.x) / viewport.scale,
-          y: (pointer.y - viewport.y) / viewport.scale,
-        });
-      }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
     >
-      <Layer>{children}</Layer>
+      <Layer>
+        {children}
+        {selectionDrag && (
+          <Rect
+            x={Math.min(selectionDrag.start.x, selectionDrag.current.x)}
+            y={Math.min(selectionDrag.start.y, selectionDrag.current.y)}
+            width={Math.abs(selectionDrag.current.x - selectionDrag.start.x)}
+            height={Math.abs(selectionDrag.current.y - selectionDrag.start.y)}
+            fill="rgba(37, 99, 235, 0.1)"
+            stroke="#2563eb"
+            strokeWidth={1 / viewport.scale}
+            listening={false}
+          />
+        )}
+      </Layer>
     </Stage>
   );
 }

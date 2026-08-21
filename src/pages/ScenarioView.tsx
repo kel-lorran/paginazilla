@@ -231,6 +231,17 @@ export function ScenarioView() {
     };
   }
 
+  /** Shift + arrastar no fundo: soma à seleção atual toda peça que a janela tocar. */
+  function handleSelectionRectEnd(rect: { x1: number; y1: number; x2: number; y2: number }) {
+    const matchedIds = pieces
+      .map(pieceBox)
+      .filter((b): b is PieceBox => b !== null)
+      .filter((b) => b.left <= rect.x2 && b.right >= rect.x1 && b.top <= rect.y2 && b.bottom >= rect.y1)
+      .map((b) => b.id);
+    if (matchedIds.length === 0) return;
+    setSelectedIds((prev) => new Set([...prev, ...matchedIds]));
+  }
+
   function handlePieceDragStart(pieceId: string) {
     if (!selectedIds.has(pieceId) || selectedIds.size <= 1) {
       dragStartRef.current = {};
@@ -380,6 +391,7 @@ export function ScenarioView() {
           viewport={viewport}
           onViewportChange={setViewport}
           onBackgroundClick={() => setSelectedIds(new Set())}
+          onSelectionRectEnd={handleSelectionRectEnd}
           stageRef={stageRef}
         >
           <PlanImage src={scenario.planImageUrl} />

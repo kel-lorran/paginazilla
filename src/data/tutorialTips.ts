@@ -14,7 +14,7 @@ export const scenarioTutorialTips: TutorialTip[] = [
   },
   {
     title: "Selecionar várias peças",
-    body: "Clique numa peça pra selecionar. Shift+clique adiciona outras à seleção, formando um grupo.",
+    body: "Clique numa peça pra selecionar. Shift+clique adiciona outras à seleção. Ou segure Shift e arraste no fundo pra abrir uma janela — tudo que ela tocar entra na seleção.",
   },
   {
     title: "Rotacionar, espelhar, duplicar, excluir",
