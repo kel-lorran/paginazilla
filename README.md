@@ -9,6 +9,8 @@ escala real, e exporte o resultado como mapa de assentamento.
 Veja [PLANNING.md](./PLANNING.md) para o desenho do produto e das decisões de
 arquitetura.
 
+![Demonstração do Paginazilla](./referencias/demo.gif)
+
 ## A ideia por trás do projeto
 
 Surgiu de uma obra de verdade. Numa construção em andamento, apareceu a
