@@ -1,4 +1,14 @@
 [
-  { "id": "demo", "name": "Cenário de demonstração" },
-  { "id": "charm-s-house", "name": "charm's house" }
+  {
+    "id": "demo",
+    "name": "Cenário de demonstração"
+  },
+  {
+    "id": "charm-s-house",
+    "name": "charm's house"
+  },
+  {
+    "id": "t2",
+    "name": "t2"
+  }
 ]

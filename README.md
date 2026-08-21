@@ -22,32 +22,50 @@ cenário de demonstração (`demo`) está incluído para testes.
 
 ### Criando um cenário novo (Modo Autor)
 
-1. Acesse `/author` (link "Modo Autor" na home). É uma ferramenta local —
-   não precisa estar publicada em produção.
-2. Faça upload da planta e da isométrica.
-3. Aba **Escala**: clique dois pontos na planta sobre uma cota conhecida
+Acesse `/author` (na versão publicada ou local — o Modo Autor roda 100% no
+navegador, sem backend).
+
+1. Faça upload da planta e da isométrica.
+2. Aba **Escala**: clique dois pontos na planta sobre uma cota conhecida
    (ex.: uma parede) e informe o comprimento real em cm.
-4. Aba **Materiais**: faça upload da imagem de cada peça, clique em
+3. Aba **Materiais**: faça upload da imagem de cada peça, clique em
    "Calibrar tamanho", arraste os cantos até o tamanho real na planta e
    clique em "Travar tamanho".
-5. Aba **Máscaras** (opcional): faça upload de imagens com transparência
-   pra esmaecer áreas fora do piso-alvo; ajuste opacidade e arraste pra
-   posicionar.
-6. Dê zoom/pan na visão que quer como inicial e clique em "Usar visão
+4. Aba **Máscaras** (opcional) — duas formas de marcar a área fora do
+   piso-alvo pra esmaecer:
+   - **Polígono** (recomendado): clique os vértices direto na planta,
+     "Concluir polígono".
+   - **Imagem**: upload de uma imagem preto-e-branco (preto esmaece, branco
+     deixa passar — sem precisar de canal alfa).
+5. Dê zoom/pan na visão que quer como inicial e clique em "Usar visão
    atual como inicial".
-7. Clique em "Exportar bundle (.zip)". Extraia o conteúdo do zip
-   (`manifest.json`, `plan.*`, `isometric.*`, `masks/`, `materials/`)
-   diretamente dentro de `public/scenarios/<id>/`, onde `<id>` é o nome do
-   cenário slugificado (também gravado como `"id"` dentro do
-   `manifest.json`).
-8. Adicione `{ "id": "<id>", "name": "<nome>" }` em
-   `public/scenarios/index.json` pra ele aparecer na home.
+6. Clique em "Exportar bundle (.zip)" — baixa um `.zip` com o cenário.
 
-## Build / deploy (GitHub Pages)
+### Publicando um cenário
+
+1. Mova o `.zip` baixado pra pasta `bundles/` na raiz do projeto.
+2. Rode:
+   ```bash
+   npm run publish-bundles
+   ```
+   Isso extrai todo `.zip` de `bundles/` pra `public/scenarios/<id>/` e
+   atualiza `public/scenarios/index.json` automaticamente (processa vários
+   de uma vez).
+3. `git add public/scenarios && git commit && git push` — o deploy no
+   GitHub Pages roda sozinho via Actions.
+
+## Deploy (GitHub Pages)
+
+Deploy automático via GitHub Actions (`.github/workflows/deploy.yml`) a
+cada push na branch `main`. Configuração necessária, uma vez só, nas
+configurações do repositório no GitHub: **Settings → Pages → Source →
+GitHub Actions**.
+
+O `base` em `vite.config.ts` está fixo em `/paginazilla/` — ajuste se o nome
+do repositório no GitHub for diferente.
+
+Build manual (sem deploy):
 
 ```bash
 npm run build
 ```
-
-O `base` em `vite.config.ts` está fixo em `/paginazilla/` — ajuste se o nome
-do repositório no GitHub for diferente.

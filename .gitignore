@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Bundles baixados do Modo Autor, ainda não publicados via scripts/publish-bundles.mjs.
+# O conteúdo publicado (extraído) vive em public/scenarios/ e esse sim é versionado.
+/bundles/*.zip
+
 # Playwright (usado só localmente pra verificação manual, não é suíte de testes do projeto)
 /test-results
 /playwright-report
