@@ -97,7 +97,7 @@ export function Piece({
         >
           <ToolbarButton index={0} label="⟳" onClick={onRotate} />
           <ToolbarButton index={1} label="⇄" onClick={onMirror} />
-          <ToolbarButton index={2} label="✕" onClick={onDelete} />
+          <ToolbarButton index={2} label="✕" onClick={onDelete} variant="danger" />
         </Group>
       )}
     </Group>
@@ -108,12 +108,15 @@ function ToolbarButton({
   index,
   label,
   onClick,
+  variant = "default",
 }: {
   index: number;
   label: string;
   onClick: () => void;
+  variant?: "default" | "danger";
 }) {
   const offset = index * (TOOLBAR_BUTTON_SIZE + TOOLBAR_GAP);
+  const isDanger = variant === "danger";
   return (
     <Group
       x={offset}
@@ -131,8 +134,8 @@ function ToolbarButton({
         width={TOOLBAR_BUTTON_SIZE}
         height={TOOLBAR_BUTTON_SIZE}
         cornerRadius={6}
-        fill="white"
-        stroke="#d1d5db"
+        fill={isDanger ? "#fef2f2" : "white"}
+        stroke={isDanger ? "#fca5a5" : "#d1d5db"}
         strokeWidth={1}
         shadowColor="black"
         shadowOpacity={0.15}
@@ -145,7 +148,7 @@ function ToolbarButton({
         align="center"
         verticalAlign="middle"
         fontSize={16}
-        fill="#111827"
+        fill={isDanger ? "#dc2626" : "#111827"}
         listening={false}
       />
     </Group>

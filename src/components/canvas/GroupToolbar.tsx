@@ -15,7 +15,7 @@ export function GroupToolbar({ x, y, inverseScale, onRotate, onMirror, onDelete 
     <Group x={x} y={y} scaleX={inverseScale} scaleY={inverseScale}>
       <ToolbarButton index={0} label="⟳" onClick={onRotate} />
       <ToolbarButton index={1} label="⇄" onClick={onMirror} />
-      <ToolbarButton index={2} label="✕" onClick={onDelete} />
+      <ToolbarButton index={2} label="✕" onClick={onDelete} variant="danger" />
     </Group>
   );
 }
