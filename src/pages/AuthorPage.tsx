@@ -223,6 +223,10 @@ export function AuthorPage() {
 
         {mode === "masks" && (
           <div className={styles.section}>
+            <p className={styles.hint}>
+              Imagem preto-e-branco: preto bloqueia (esmaece), branco deixa
+              passar. Cinzas ficam parciais. Não precisa de canal alfa.
+            </p>
             <label className={styles.field}>
               <span>Adicionar máscara</span>
               <input

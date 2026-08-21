@@ -1,6 +1,6 @@
 import { Image as KonvaImage } from "react-konva";
 import type Konva from "konva";
-import useImage from "use-image";
+import { useLuminanceMaskImage } from "../../hooks/useLuminanceMaskImage";
 import type { DraftMask } from "../../state/authorStore";
 
 interface DraggableMaskImageProps {
@@ -9,8 +9,8 @@ interface DraggableMaskImageProps {
 }
 
 export function DraggableMaskImage({ mask, onMove }: DraggableMaskImageProps) {
-  const [image] = useImage(mask.previewUrl);
-  if (!image) return null;
+  const canvas = useLuminanceMaskImage(mask.previewUrl);
+  if (!canvas) return null;
 
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>) {
     onMove(e.target.x(), e.target.y());
@@ -18,7 +18,7 @@ export function DraggableMaskImage({ mask, onMove }: DraggableMaskImageProps) {
 
   return (
     <KonvaImage
-      image={image}
+      image={canvas}
       x={mask.x}
       y={mask.y}
       opacity={mask.opacity}
