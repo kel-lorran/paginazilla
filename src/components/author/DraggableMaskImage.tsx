@@ -9,7 +9,7 @@ interface DraggableMaskImageProps {
 }
 
 export function DraggableMaskImage({ mask, onMove }: DraggableMaskImageProps) {
-  const canvas = useLuminanceMaskImage(mask.previewUrl);
+  const canvas = useLuminanceMaskImage(mask.previewUrl, { featherPx: mask.featherPx });
   if (!canvas) return null;
 
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>) {

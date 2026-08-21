@@ -3,7 +3,7 @@ import { useLuminanceMaskImage } from "../../hooks/useLuminanceMaskImage";
 import type { MaskLayer } from "../../types";
 
 export function MaskImage({ mask }: { mask: MaskLayer }) {
-  const canvas = useLuminanceMaskImage(mask.imageUrl);
+  const canvas = useLuminanceMaskImage(mask.imageUrl, { featherPx: mask.featherPx });
   if (!canvas) return null;
   return (
     <KonvaImage

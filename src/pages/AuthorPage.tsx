@@ -254,6 +254,19 @@ export function AuthorPage() {
                     }
                   />
                 </label>
+                <label>
+                  Suavizar borda
+                  <input
+                    type="range"
+                    min={0}
+                    max={80}
+                    step={1}
+                    value={mask.featherPx}
+                    onChange={(e) =>
+                      store.updateMask(mask.id, { featherPx: Number(e.target.value) })
+                    }
+                  />
+                </label>
                 <button type="button" onClick={() => store.removeMask(mask.id)}>
                   Remover
                 </button>

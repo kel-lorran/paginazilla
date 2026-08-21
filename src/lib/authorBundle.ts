@@ -86,6 +86,7 @@ export async function buildScenarioBundle(input: BundleInput): Promise<Blob> {
       x: mask.x,
       y: mask.y,
       opacity: mask.opacity,
+      featherPx: mask.featherPx,
     });
   }
 

@@ -30,6 +30,8 @@ export interface MaskLayer {
   x: number;
   y: number;
   opacity: number;
+  /** Raio de desfoque da borda (px da imagem original). Se omitido, usa um valor padrão proporcional à imagem. */
+  featherPx?: number;
 }
 
 /** Um material/peça disponível para compor o mosaico (ex: fatia de telha). */

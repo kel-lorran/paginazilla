@@ -8,13 +8,19 @@ interface PieceProps {
   material: Material;
   widthPx: number;
   heightPx: number;
+  /** Selecionada sozinha — mostra a toolbar completa (mover/rotacionar/espelhar/excluir). */
   selected: boolean;
+  /** Faz parte de uma seleção múltipla — só mostra o contorno, sem toolbar individual. */
+  highlighted: boolean;
   /** 1 / viewport.scale — usado pra manter a toolbar com tamanho constante na tela. */
   inverseScale: number;
-  onSelect: () => void;
-  onMove: (x: number, y: number) => void;
+  onSelect: (shiftKey: boolean) => void;
+  onDragStart: () => void;
+  onDragMove: (x: number, y: number) => void;
+  onDragEnd: (x: number, y: number) => void;
   onRotate: () => void;
   onMirror: () => void;
+  onDelete: () => void;
 }
 
 const ROTATE_STEP_DEG = 15;
@@ -27,16 +33,24 @@ export function Piece({
   widthPx,
   heightPx,
   selected,
+  highlighted,
   inverseScale,
   onSelect,
-  onMove,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
   onRotate,
   onMirror,
+  onDelete,
 }: PieceProps) {
   const [image] = useImage(material.imageUrl);
 
+  function handleDragMove(e: Konva.KonvaEventObject<DragEvent>) {
+    onDragMove(e.target.x(), e.target.y());
+  }
+
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>) {
-    onMove(e.target.x(), e.target.y());
+    onDragEnd(e.target.x(), e.target.y());
   }
 
   return (
@@ -45,9 +59,11 @@ export function Piece({
       y={instance.y}
       rotation={instance.rotationDeg}
       draggable
+      onDragStart={onDragStart}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
-      onClick={onSelect}
-      onTap={onSelect}
+      onClick={(e) => onSelect(e.evt.shiftKey)}
+      onTap={() => onSelect(false)}
     >
       {image && (
         <KonvaImage
@@ -59,7 +75,7 @@ export function Piece({
           scaleX={instance.mirrored ? -1 : 1}
         />
       )}
-      {selected && (
+      {(selected || highlighted) && (
         <Rect
           width={widthPx}
           height={heightPx}
@@ -79,18 +95,9 @@ export function Piece({
           scaleX={inverseScale}
           scaleY={inverseScale}
         >
-          <ToolbarButton
-            index={0}
-            label="⟳"
-            title="Rotacionar"
-            onClick={onRotate}
-          />
-          <ToolbarButton
-            index={1}
-            label="⇄"
-            title="Espelhar"
-            onClick={onMirror}
-          />
+          <ToolbarButton index={0} label="⟳" onClick={onRotate} />
+          <ToolbarButton index={1} label="⇄" onClick={onMirror} />
+          <ToolbarButton index={2} label="✕" onClick={onDelete} />
         </Group>
       )}
     </Group>
@@ -104,7 +111,6 @@ function ToolbarButton({
 }: {
   index: number;
   label: string;
-  title: string;
   onClick: () => void;
 }) {
   const offset = index * (TOOLBAR_BUTTON_SIZE + TOOLBAR_GAP);
@@ -146,4 +152,4 @@ function ToolbarButton({
   );
 }
 
-export { ROTATE_STEP_DEG };
+export { ROTATE_STEP_DEG, TOOLBAR_BUTTON_SIZE, TOOLBAR_GAP, ToolbarButton };

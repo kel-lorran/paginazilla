@@ -10,6 +10,7 @@ export interface DraftMask {
   x: number;
   y: number;
   opacity: number;
+  featherPx: number;
 }
 
 export interface DraftMaterial {
@@ -40,8 +41,11 @@ interface AuthorState {
   setIsometricFile: (file: File) => void;
   setScaleCalibration: (calibration: ScaleCalibration) => void;
   clearScaleCalibration: () => void;
-  addMask: (file: File) => void;
-  updateMask: (id: string, patch: Partial<Pick<DraftMask, "x" | "y" | "opacity">>) => void;
+  addMask: (file: File) => Promise<void>;
+  updateMask: (
+    id: string,
+    patch: Partial<Pick<DraftMask, "x" | "y" | "opacity" | "featherPx">>,
+  ) => void;
   removeMask: (id: string) => void;
   addMaterial: (file: File) => Promise<void>;
   lockMaterialSize: (id: string, realWidthCm: number, realHeightCm: number) => void;
@@ -87,15 +91,18 @@ export const useAuthorStore = create<AuthorState>((set) => ({
 
   clearScaleCalibration: () => set({ scaleCalibration: null }),
 
-  addMask: (file) => {
+  addMask: async (file) => {
+    const previewUrl = URL.createObjectURL(file);
+    const { width, height } = await loadImageSize(previewUrl);
     const mask: DraftMask = {
       id: uuid(),
       name: file.name,
       file,
-      previewUrl: URL.createObjectURL(file),
+      previewUrl,
       x: 0,
       y: 0,
       opacity: 0.6,
+      featherPx: Math.round(Math.max(width, height) * 0.03),
     };
     set((state) => ({ masks: [...state.masks, mask] }));
   },
