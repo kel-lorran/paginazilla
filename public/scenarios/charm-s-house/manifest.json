@@ -1,0 +1,35 @@
+{
+  "id": "charm-s-house",
+  "name": "charm's house",
+  "isometricImageUrl": "isometric.png",
+  "planImageUrl": "plan.png",
+  "scaleCalibration": {
+    "referenceLine": [
+      {
+        "x": 308.47738025584545,
+        "y": 23.69463820605856
+      },
+      {
+        "x": 311.02994338084545,
+        "y": 594.192496643559
+      }
+    ],
+    "realLengthCm": 1125,
+    "pixelsPerCm": 0.507114283414194
+  },
+  "masks": [],
+  "materials": [
+    {
+      "id": "e29efb48-0e57-424d-b683-d05f929f70a5",
+      "name": "mod1.png",
+      "imageUrl": "materials/e29efb48-0e57-424d-b683-d05f929f70a5.png",
+      "realWidthCm": 31.9,
+      "realHeightCm": 10.6
+    }
+  ],
+  "initialViewport": {
+    "scale": 2.7859625904016436,
+    "x": -504.2887708530038,
+    "y": -598.7046942949955
+  }
+}

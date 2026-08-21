@@ -1,3 +1,4 @@
 [
-  { "id": "demo", "name": "Cenário de demonstração" }
+  { "id": "demo", "name": "Cenário de demonstração" },
+  { "id": "charm-s-house", "name": "charm's house" }
 ]
