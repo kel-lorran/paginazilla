@@ -21,6 +21,7 @@ import { cmToPixels } from "../lib/scale";
 import { centerOf, reflectPointHorizontal, rotatePointAround } from "../lib/groupTransform";
 import { snapToNeighbors, type PieceBox } from "../lib/alignmentGuides";
 import { loadProgress, saveProgress } from "../storage/progressStore";
+import { loadViewState, saveViewState } from "../lib/viewState";
 import type { Material, MosaicProgress, PieceInstance, Point, Scenario, Viewport } from "../types";
 
 const SNAP_THRESHOLD_SCREEN_PX = 8;
@@ -77,7 +78,10 @@ export function ScenarioView() {
       .then(async (loaded) => {
         if (cancelled) return;
         setScenario(loaded);
-        setViewport(loaded.initialViewport);
+        const savedView = loadViewState(scenarioId);
+        setViewport(savedView?.viewport ?? loaded.initialViewport);
+        setGridEnabled(savedView?.gridEnabled ?? false);
+        setGridSpacingCm(savedView?.gridSpacingCm ?? DEFAULT_GRID_SPACING_CM);
         const progress = await loadProgress(scenarioId);
         setPieces(progress?.pieces ?? []);
       })
@@ -89,6 +93,11 @@ export function ScenarioView() {
       cancelled = true;
     };
   }, [scenarioId]);
+
+  useEffect(() => {
+    if (!scenario) return;
+    saveViewState(scenarioId, { viewport, gridEnabled, gridSpacingCm });
+  }, [scenario, scenarioId, viewport, gridEnabled, gridSpacingCm]);
 
   useEffect(() => {
     try {
