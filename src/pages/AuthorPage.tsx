@@ -4,7 +4,9 @@ import { PlanCanvas } from "../components/canvas/PlanCanvas";
 import { PlanImage } from "../components/canvas/PlanImage";
 import { ReferenceLineOverlay } from "../components/author/ReferenceLineOverlay";
 import { DraggableMaskImage } from "../components/author/DraggableMaskImage";
+import { PolygonDraftOverlay } from "../components/author/PolygonDraftOverlay";
 import { MaterialCalibrationShape } from "../components/author/MaterialCalibrationShape";
+import { PolygonMaskOverlay } from "../components/canvas/PolygonMaskOverlay";
 import { useElementSize } from "../hooks/useElementSize";
 import { useAuthorStore } from "../state/authorStore";
 import { calibrateScale, pixelsToCm } from "../lib/scale";
@@ -13,6 +15,7 @@ import type { Point } from "../types";
 import styles from "./AuthorPage.module.css";
 
 type AuthorMode = "calibrate" | "masks" | "materials";
+type MaskTool = "polygon" | "image";
 
 function roundCm(cm: number): number {
   return Math.round(cm * 10) / 10;
@@ -28,6 +31,10 @@ export function AuthorPage() {
   const [calibrationPoints, setCalibrationPoints] = useState<Point[]>([]);
   const [realLengthInput, setRealLengthInput] = useState("");
 
+  const [maskTool, setMaskTool] = useState<MaskTool>("polygon");
+  const [polygonPoints, setPolygonPoints] = useState<Point[]>([]);
+  const [polygonOpacity, setPolygonOpacity] = useState(0.35);
+
   const [calibratingMaterialId, setCalibratingMaterialId] = useState<string | null>(null);
   const [calibrationShape, setCalibrationShape] = useState<{
     x: number;
@@ -42,11 +49,27 @@ export function AuthorPage() {
   const calibratingMaterial = store.materials.find((m) => m.id === calibratingMaterialId) ?? null;
 
   function handleCanvasClick(point: Point) {
-    if (mode !== "calibrate" || store.scaleCalibration) return;
-    setCalibrationPoints((prev) => {
-      if (prev.length >= 2) return [point];
-      return [...prev, point];
-    });
+    if (mode === "calibrate" && !store.scaleCalibration) {
+      setCalibrationPoints((prev) => (prev.length >= 2 ? [point] : [...prev, point]));
+      return;
+    }
+    if (mode === "masks" && maskTool === "polygon") {
+      setPolygonPoints((prev) => [...prev, point]);
+    }
+  }
+
+  function handleFinishPolygon() {
+    if (polygonPoints.length < 3) return;
+    store.addPolygonMask(polygonPoints, polygonOpacity);
+    setPolygonPoints([]);
+  }
+
+  function handleUndoPolygonPoint() {
+    setPolygonPoints((prev) => prev.slice(0, -1));
+  }
+
+  function handleCancelPolygon() {
+    setPolygonPoints([]);
   }
 
   function handleConfirmCalibration() {
@@ -223,24 +246,88 @@ export function AuthorPage() {
 
         {mode === "masks" && (
           <div className={styles.section}>
-            <p className={styles.hint}>
-              Imagem preto-e-branco: preto bloqueia (esmaece), branco deixa
-              passar. Cinzas ficam parciais. Não precisa de canal alfa.
-            </p>
-            <label className={styles.field}>
-              <span>Adicionar máscara</span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) store.addMask(file);
-                }}
-              />
-            </label>
+            <nav className={styles.modeTabs}>
+              <button
+                type="button"
+                className={maskTool === "polygon" ? styles.modeTabActive : styles.modeTab}
+                onClick={() => setMaskTool("polygon")}
+              >
+                Polígono
+              </button>
+              <button
+                type="button"
+                className={maskTool === "image" ? styles.modeTabActive : styles.modeTab}
+                onClick={() => setMaskTool("image")}
+              >
+                Imagem
+              </button>
+            </nav>
+
+            {maskTool === "polygon" ? (
+              <>
+                <p className={styles.hint}>
+                  Clique na planta pra marcar os vértices da área do piso. Tudo
+                  fora do polígono fica esmaecido.
+                </p>
+                <p className={styles.hint}>{polygonPoints.length} ponto(s)</p>
+                <label className={styles.field}>
+                  <span>Opacidade do esmaecimento</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={polygonOpacity}
+                    onChange={(e) => setPolygonOpacity(Number(e.target.value))}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleUndoPolygonPoint}
+                  disabled={polygonPoints.length === 0}
+                >
+                  Desfazer último ponto
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFinishPolygon}
+                  disabled={polygonPoints.length < 3}
+                >
+                  Concluir polígono
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelPolygon}
+                  disabled={polygonPoints.length === 0}
+                >
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <>
+                <p className={styles.hint}>
+                  Imagem preto-e-branco: preto esmaece, branco deixa passar.
+                  Cinzas ficam parciais. Não precisa de canal alfa.
+                </p>
+                <label className={styles.field}>
+                  <span>Adicionar máscara</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) store.addImageMask(file);
+                    }}
+                  />
+                </label>
+              </>
+            )}
+
             {store.masks.map((mask) => (
               <div key={mask.id} className={styles.listItem}>
-                <span>{mask.name}</span>
+                <span>
+                  {mask.name} ({mask.type === "polygon" ? "polígono" : "imagem"})
+                </span>
                 <label>
                   Opacidade
                   <input
@@ -254,19 +341,21 @@ export function AuthorPage() {
                     }
                   />
                 </label>
-                <label>
-                  Suavizar borda
-                  <input
-                    type="range"
-                    min={0}
-                    max={80}
-                    step={1}
-                    value={mask.featherPx}
-                    onChange={(e) =>
-                      store.updateMask(mask.id, { featherPx: Number(e.target.value) })
-                    }
-                  />
-                </label>
+                {mask.type === "image" && (
+                  <label>
+                    Suavizar borda
+                    <input
+                      type="range"
+                      min={0}
+                      max={80}
+                      step={1}
+                      value={mask.featherPx}
+                      onChange={(e) =>
+                        store.updateMask(mask.id, { featherPx: Number(e.target.value) })
+                      }
+                    />
+                  </label>
+                )}
                 <button type="button" onClick={() => store.removeMask(mask.id)}>
                   Remover
                 </button>
@@ -390,13 +479,21 @@ export function AuthorPage() {
             )}
 
             {mode === "masks" &&
-              store.masks.map((mask) => (
-                <DraggableMaskImage
-                  key={mask.id}
-                  mask={mask}
-                  onMove={(x, y) => store.updateMask(mask.id, { x, y })}
-                />
-              ))}
+              store.masks.map((mask) =>
+                mask.type === "polygon" ? (
+                  <PolygonMaskOverlay key={mask.id} points={mask.points} opacity={mask.opacity} />
+                ) : (
+                  <DraggableMaskImage
+                    key={mask.id}
+                    mask={mask}
+                    onMove={(x, y) => store.updateMask(mask.id, { x, y })}
+                  />
+                ),
+              )}
+
+            {mode === "masks" && maskTool === "polygon" && (
+              <PolygonDraftOverlay points={polygonPoints} inverseScale={1 / viewport.scale} />
+            )}
 
             {calibratingMaterial && calibrationShape && (
               <MaterialCalibrationShape

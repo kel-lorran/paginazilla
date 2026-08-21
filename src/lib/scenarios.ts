@@ -15,10 +15,9 @@ function resolveScenarioUrls(scenario: Scenario, baseUrl: string): Scenario {
     ...scenario,
     isometricImageUrl: baseUrl + scenario.isometricImageUrl,
     planImageUrl: baseUrl + scenario.planImageUrl,
-    masks: scenario.masks.map((mask) => ({
-      ...mask,
-      imageUrl: baseUrl + mask.imageUrl,
-    })),
+    masks: scenario.masks.map((mask) =>
+      mask.type === "polygon" ? mask : { ...mask, imageUrl: baseUrl + mask.imageUrl },
+    ),
     materials: scenario.materials.map((material) => ({
       ...material,
       imageUrl: baseUrl + material.imageUrl,

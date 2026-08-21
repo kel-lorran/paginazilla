@@ -76,10 +76,21 @@ export async function buildScenarioBundle(input: BundleInput): Promise<Blob> {
 
   const masks: MaskLayer[] = [];
   for (const mask of input.masks) {
+    if (mask.type === "polygon") {
+      masks.push({
+        type: "polygon",
+        id: mask.id,
+        name: mask.name,
+        points: mask.points,
+        opacity: mask.opacity,
+      });
+      continue;
+    }
     const ext = fileExtension(mask.file);
     const filename = `masks/${mask.id}.${ext}`;
     zip.file(filename, mask.file);
     masks.push({
+      type: "image",
       id: mask.id,
       name: mask.name,
       imageUrl: filename,

@@ -21,8 +21,9 @@ export interface ScaleCalibration {
   pixelsPerCm: number;
 }
 
-/** Camada de máscara sobreposta à planta, para esmaecer áreas fora do piso-alvo. */
-export interface MaskLayer {
+/** Máscara por imagem preto-e-branco: preto esmaece, branco deixa passar. */
+export interface ImageMaskLayer {
+  type: "image";
   id: string;
   name: string;
   imageUrl: string;
@@ -33,6 +34,19 @@ export interface MaskLayer {
   /** Raio de desfoque da borda (px da imagem original). Se omitido, usa um valor padrão proporcional à imagem. */
   featherPx?: number;
 }
+
+/** Máscara por polígono desenhado no Modo Autor: tudo fora do polígono esmaece. */
+export interface PolygonMaskLayer {
+  type: "polygon";
+  id: string;
+  name: string;
+  /** Vértices do polígono, no espaço de pixels da planta. */
+  points: Point[];
+  opacity: number;
+}
+
+/** Camada de máscara sobreposta à planta, para esmaecer áreas fora do piso-alvo. */
+export type MaskLayer = ImageMaskLayer | PolygonMaskLayer;
 
 /** Um material/peça disponível para compor o mosaico (ex: fatia de telha). */
 export interface Material {

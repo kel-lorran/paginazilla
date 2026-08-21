@@ -5,6 +5,7 @@ import type Konva from "konva";
 import { PlanCanvas } from "../components/canvas/PlanCanvas";
 import { PlanImage } from "../components/canvas/PlanImage";
 import { MaskImage } from "../components/canvas/MaskImage";
+import { PolygonMaskOverlay } from "../components/canvas/PolygonMaskOverlay";
 import { Piece, ROTATE_STEP_DEG } from "../components/canvas/Piece";
 import { GroupToolbar } from "../components/canvas/GroupToolbar";
 import { GridOverlay } from "../components/canvas/GridOverlay";
@@ -297,9 +298,13 @@ export function ScenarioView() {
           stageRef={stageRef}
         >
           <PlanImage src={scenario.planImageUrl} />
-          {scenario.masks.map((mask) => (
-            <MaskImage key={mask.id} mask={mask} />
-          ))}
+          {scenario.masks.map((mask) =>
+            mask.type === "polygon" ? (
+              <PolygonMaskOverlay key={mask.id} points={mask.points} opacity={mask.opacity} />
+            ) : (
+              <MaskImage key={mask.id} mask={mask} />
+            ),
+          )}
           {gridEnabled && (
             <GridOverlay
               viewport={viewport}

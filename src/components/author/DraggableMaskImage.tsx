@@ -1,10 +1,10 @@
 import { Image as KonvaImage } from "react-konva";
 import type Konva from "konva";
 import { useLuminanceMaskImage } from "../../hooks/useLuminanceMaskImage";
-import type { DraftMask } from "../../state/authorStore";
+import type { DraftImageMask } from "../../state/authorStore";
 
 interface DraggableMaskImageProps {
-  mask: DraftMask;
+  mask: DraftImageMask;
   onMove: (x: number, y: number) => void;
 }
 

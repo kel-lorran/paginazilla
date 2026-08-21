@@ -19,6 +19,7 @@
   },
   "masks": [
     {
+      "type": "image",
       "id": "area-fora-piso",
       "name": "Área fora do piso",
       "imageUrl": "masks/area-fora-piso.png",

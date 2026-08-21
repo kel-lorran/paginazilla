@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { v4 as uuid } from "uuid";
-import type { ScaleCalibration, Viewport } from "../types";
+import type { Point, ScaleCalibration, Viewport } from "../types";
 
-export interface DraftMask {
+export interface DraftImageMask {
+  type: "image";
   id: string;
   name: string;
   file: File;
@@ -12,6 +13,16 @@ export interface DraftMask {
   opacity: number;
   featherPx: number;
 }
+
+export interface DraftPolygonMask {
+  type: "polygon";
+  id: string;
+  name: string;
+  points: Point[];
+  opacity: number;
+}
+
+export type DraftMask = DraftImageMask | DraftPolygonMask;
 
 export interface DraftMaterial {
   id: string;
@@ -41,10 +52,11 @@ interface AuthorState {
   setIsometricFile: (file: File) => void;
   setScaleCalibration: (calibration: ScaleCalibration) => void;
   clearScaleCalibration: () => void;
-  addMask: (file: File) => Promise<void>;
+  addImageMask: (file: File) => Promise<void>;
+  addPolygonMask: (points: Point[], opacity: number) => void;
   updateMask: (
     id: string,
-    patch: Partial<Pick<DraftMask, "x" | "y" | "opacity" | "featherPx">>,
+    patch: Partial<Pick<DraftImageMask, "x" | "y" | "opacity" | "featherPx">>,
   ) => void;
   removeMask: (id: string) => void;
   addMaterial: (file: File) => Promise<void>;
@@ -91,10 +103,11 @@ export const useAuthorStore = create<AuthorState>((set) => ({
 
   clearScaleCalibration: () => set({ scaleCalibration: null }),
 
-  addMask: async (file) => {
+  addImageMask: async (file) => {
     const previewUrl = URL.createObjectURL(file);
     const { width, height } = await loadImageSize(previewUrl);
-    const mask: DraftMask = {
+    const mask: DraftImageMask = {
+      type: "image",
       id: uuid(),
       name: file.name,
       file,
@@ -107,9 +120,20 @@ export const useAuthorStore = create<AuthorState>((set) => ({
     set((state) => ({ masks: [...state.masks, mask] }));
   },
 
+  addPolygonMask: (points, opacity) => {
+    const mask: DraftPolygonMask = {
+      type: "polygon",
+      id: uuid(),
+      name: `Área ${points.length}v`,
+      points,
+      opacity,
+    };
+    set((state) => ({ masks: [...state.masks, mask] }));
+  },
+
   updateMask: (id, patch) =>
     set((state) => ({
-      masks: state.masks.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+      masks: state.masks.map((m) => (m.id === id ? ({ ...m, ...patch } as DraftMask) : m)),
     })),
 
   removeMask: (id) =>
