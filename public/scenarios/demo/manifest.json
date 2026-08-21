@@ -1,0 +1,25 @@
+{
+  "id": "demo",
+  "name": "Cenário de demonstração",
+  "isometricImageUrl": "isometric.svg",
+  "planImageUrl": "plan.svg",
+  "scaleCalibration": {
+    "referenceLine": [
+      { "x": 20, "y": 40 },
+      { "x": 20, "y": 860 }
+    ],
+    "realLengthCm": 820,
+    "pixelsPerCm": 1
+  },
+  "masks": [],
+  "materials": [
+    {
+      "id": "tile-slice",
+      "name": "Fatia de telha",
+      "imageUrl": "materials/tile-slice.png",
+      "realWidthCm": 30,
+      "realHeightCm": 10
+    }
+  ],
+  "initialViewport": { "x": 150, "y": 50, "scale": 0.7 }
+}

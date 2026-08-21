@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">
+  <rect width="320" height="200" fill="white" />
+  <g fill="none" stroke="#374151" stroke-width="2" stroke-linejoin="round">
+    <polygon points="40,80 160,30 280,80 160,130" fill="#e5e7eb" />
+    <polygon points="40,80 160,130 160,190 40,140" fill="#d1d5db" />
+    <polygon points="280,80 160,130 160,190 280,140" fill="#9ca3af" />
+  </g>
+  <text x="160" y="15" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#6b7280">
+    contexto isométrico (placeholder)
+  </text>
+</svg>

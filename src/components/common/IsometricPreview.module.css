@@ -1,0 +1,16 @@
+.wrapper {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 160px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wrapper img {
+  width: 100%;
+  display: block;
+}

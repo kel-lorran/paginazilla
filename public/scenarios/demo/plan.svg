@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="900" viewBox="0 0 500 900">
+  <rect x="0" y="0" width="500" height="900" fill="white" />
+  <g fill="none" stroke="black" stroke-width="10">
+    <rect x="40" y="40" width="420" height="820" />
+    <line x1="40" y1="300" x2="300" y2="300" />
+    <line x1="300" y1="300" x2="300" y2="40" />
+    <line x1="40" y1="600" x2="250" y2="600" />
+  </g>
+  <!-- cota de referência: parede externa esquerda mede 8,20 m na realidade -->
+  <line x1="20" y1="40" x2="20" y2="860" stroke="#999" stroke-width="2" stroke-dasharray="6 4" />
+</svg>
