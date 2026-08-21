@@ -7,6 +7,7 @@ import { PlanImage } from "../components/canvas/PlanImage";
 import { MaskImage } from "../components/canvas/MaskImage";
 import { PolygonMaskOverlay } from "../components/canvas/PolygonMaskOverlay";
 import { Piece, ROTATE_STEP_DEG } from "../components/canvas/Piece";
+import { PieceOutline } from "../components/canvas/PieceOutline";
 import { GroupToolbar } from "../components/canvas/GroupToolbar";
 import { GridOverlay } from "../components/canvas/GridOverlay";
 import { AlignmentGuides } from "../components/canvas/AlignmentGuides";
@@ -375,9 +376,16 @@ export function ScenarioView() {
 
   const selected = selectedPieces();
   const isGroupSelection = selected.length > 1;
-  const groupAnchor = isGroupSelection
-    ? centerOf(selected.map((p) => ({ x: p.x, y: p.y - 60 })))
-    : null;
+  const selectedBoxes = selected.map(pieceBox).filter((b): b is PieceBox => b !== null);
+  // Ancora no topo da bounding box da seleção (não no centroide) — em seleções
+  // espalhadas ou com "buracos", o centroide pode cair longe de qualquer peça.
+  const groupAnchor =
+    isGroupSelection && selectedBoxes.length > 0
+      ? {
+          x: (Math.min(...selectedBoxes.map((b) => b.left)) + Math.max(...selectedBoxes.map((b) => b.right))) / 2,
+          y: Math.min(...selectedBoxes.map((b) => b.top)) - 40 / viewport.scale,
+        }
+      : null;
 
   return (
     <div
@@ -393,6 +401,54 @@ export function ScenarioView() {
           onBackgroundClick={() => setSelectedIds(new Set())}
           onSelectionRectEnd={handleSelectionRectEnd}
           stageRef={stageRef}
+          overlay={
+            <>
+              <AlignmentGuides
+                guideX={guides.x}
+                guideY={guides.y}
+                viewport={viewport}
+                canvasWidth={size.width}
+                canvasHeight={size.height}
+                inverseScale={1 / viewport.scale}
+              />
+              {pieces.map((piece) => {
+                if (!selectedIds.has(piece.id)) return null;
+                const material = materialById.get(piece.materialId);
+                if (!material) return null;
+                const widthPx = cmToPixels(material.realWidthCm, scenario.scaleCalibration);
+                const heightPx = cmToPixels(material.realHeightCm, scenario.scaleCalibration);
+                return (
+                  <PieceOutline
+                    key={piece.id}
+                    instance={piece}
+                    widthPx={widthPx}
+                    heightPx={heightPx}
+                    showToolbar={!isGroupSelection}
+                    inverseScale={1 / viewport.scale}
+                    onRotate={() =>
+                      updatePiece(piece.id, {
+                        rotationDeg: (piece.rotationDeg + ROTATE_STEP_DEG) % 360,
+                      })
+                    }
+                    onMirror={() => updatePiece(piece.id, { mirrored: !piece.mirrored })}
+                    onDuplicate={handleDuplicateSelected}
+                    onDelete={() => deletePieces(new Set([piece.id]))}
+                  />
+                );
+              })}
+              {isGroupSelection && groupAnchor && (
+                <GroupToolbar
+                  x={groupAnchor.x}
+                  y={groupAnchor.y}
+                  inverseScale={1 / viewport.scale}
+                  onRotate={handleGroupRotate}
+                  onMirror={handleGroupMirror}
+                  onDuplicate={handleDuplicateSelected}
+                  onDelete={() => deletePieces(selectedIds)}
+                />
+              )}
+            </>
+          }
         >
           <PlanImage src={scenario.planImageUrl} />
           {scenario.masks.map((mask) =>
@@ -416,8 +472,6 @@ export function ScenarioView() {
             if (!material) return null;
             const widthPx = cmToPixels(material.realWidthCm, scenario.scaleCalibration);
             const heightPx = cmToPixels(material.realHeightCm, scenario.scaleCalibration);
-            const isSelectedAlone = !isGroupSelection && selectedIds.has(piece.id);
-            const isHighlighted = isGroupSelection && selectedIds.has(piece.id);
             return (
               <Piece
                 key={piece.id}
@@ -425,9 +479,6 @@ export function ScenarioView() {
                 material={material}
                 widthPx={widthPx}
                 heightPx={heightPx}
-                selected={isSelectedAlone}
-                highlighted={isHighlighted}
-                inverseScale={1 / viewport.scale}
                 onSelect={(shiftKey) => handleSelectPiece(piece.id, shiftKey)}
                 onDragStart={() => handlePieceDragStart(piece.id)}
                 onDragMove={(x, y) => {
@@ -440,36 +491,9 @@ export function ScenarioView() {
                   const snapped = isGroupDrag ? { x, y } : snapSinglePiece(piece.id, x, y);
                   handlePieceDragEnd(piece.id, snapped.x, snapped.y);
                 }}
-                onRotate={() =>
-                  updatePiece(piece.id, {
-                    rotationDeg: (piece.rotationDeg + ROTATE_STEP_DEG) % 360,
-                  })
-                }
-                onMirror={() => updatePiece(piece.id, { mirrored: !piece.mirrored })}
-                onDuplicate={handleDuplicateSelected}
-                onDelete={() => deletePieces(new Set([piece.id]))}
               />
             );
           })}
-          <AlignmentGuides
-            guideX={guides.x}
-            guideY={guides.y}
-            viewport={viewport}
-            canvasWidth={size.width}
-            canvasHeight={size.height}
-            inverseScale={1 / viewport.scale}
-          />
-          {isGroupSelection && groupAnchor && (
-            <GroupToolbar
-              x={groupAnchor.x}
-              y={groupAnchor.y}
-              inverseScale={1 / viewport.scale}
-              onRotate={handleGroupRotate}
-              onMirror={handleGroupMirror}
-              onDuplicate={handleDuplicateSelected}
-              onDelete={() => deletePieces(selectedIds)}
-            />
-          )}
         </PlanCanvas>
       )}
 

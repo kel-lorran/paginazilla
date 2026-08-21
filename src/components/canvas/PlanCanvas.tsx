@@ -24,6 +24,8 @@ interface PlanCanvasProps {
   onSelectionRectEnd?: (rect: SelectionRect) => void;
   stageRef: RefObject<Konva.Stage | null>;
   children: ReactNode;
+  /** Renderizado numa camada separada, sempre por cima do conteúdo — contornos, toolbars, guias. */
+  overlay?: ReactNode;
 }
 
 export function PlanCanvas({
@@ -35,6 +37,7 @@ export function PlanCanvas({
   onSelectionRectEnd,
   stageRef,
   children,
+  overlay,
 }: PlanCanvasProps) {
   const [shiftHeld, setShiftHeld] = useState(false);
   const [selectionDrag, setSelectionDrag] = useState<{ start: Point; current: Point } | null>(
@@ -147,8 +150,9 @@ export function PlanCanvas({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
+      <Layer>{children}</Layer>
       <Layer>
-        {children}
+        {overlay}
         {selectionDrag && (
           <Rect
             x={Math.min(selectionDrag.start.x, selectionDrag.current.x)}

@@ -8,20 +8,10 @@ interface PieceProps {
   material: Material;
   widthPx: number;
   heightPx: number;
-  /** Selecionada sozinha — mostra a toolbar completa (mover/rotacionar/espelhar/excluir). */
-  selected: boolean;
-  /** Faz parte de uma seleção múltipla — só mostra o contorno, sem toolbar individual. */
-  highlighted: boolean;
-  /** 1 / viewport.scale — usado pra manter a toolbar com tamanho constante na tela. */
-  inverseScale: number;
   onSelect: (shiftKey: boolean) => void;
   onDragStart: () => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
-  onRotate: () => void;
-  onMirror: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
 }
 
 const ROTATE_STEP_DEG = 15;
@@ -33,17 +23,10 @@ export function Piece({
   material,
   widthPx,
   heightPx,
-  selected,
-  highlighted,
-  inverseScale,
   onSelect,
   onDragStart,
   onDragMove,
   onDragEnd,
-  onRotate,
-  onMirror,
-  onDuplicate,
-  onDelete,
 }: PieceProps) {
   const [image] = useImage(material.imageUrl);
 
@@ -77,37 +60,11 @@ export function Piece({
           scaleX={instance.mirrored ? -1 : 1}
         />
       )}
-      {(selected || highlighted) && (
-        <Rect
-          width={widthPx}
-          height={heightPx}
-          offsetX={widthPx / 2}
-          offsetY={heightPx / 2}
-          stroke="#2563eb"
-          strokeWidth={2 * inverseScale}
-          dash={[6 * inverseScale, 4 * inverseScale]}
-          listening={false}
-        />
-      )}
-      {selected && (
-        <Group
-          x={widthPx / 2}
-          y={-heightPx / 2}
-          rotation={-instance.rotationDeg}
-          scaleX={inverseScale}
-          scaleY={inverseScale}
-        >
-          <ToolbarButton index={0} label="⟳" onClick={onRotate} />
-          <ToolbarButton index={1} label="⇄" onClick={onMirror} />
-          <ToolbarButton index={2} label="⧉" onClick={onDuplicate} />
-          <ToolbarButton index={3} label="✕" onClick={onDelete} variant="danger" />
-        </Group>
-      )}
     </Group>
   );
 }
 
-function ToolbarButton({
+export function ToolbarButton({
   index,
   label,
   onClick,
@@ -158,4 +115,4 @@ function ToolbarButton({
   );
 }
 
-export { ROTATE_STEP_DEG, TOOLBAR_BUTTON_SIZE, TOOLBAR_GAP, ToolbarButton };
+export { ROTATE_STEP_DEG, TOOLBAR_BUTTON_SIZE, TOOLBAR_GAP };
