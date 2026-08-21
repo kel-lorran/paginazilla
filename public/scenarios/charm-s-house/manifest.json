@@ -17,7 +17,16 @@
     "realLengthCm": 1125,
     "pixelsPerCm": 0.507114283414194
   },
-  "masks": [],
+  "masks": [
+    {
+      "id": "area-fora-piso",
+      "name": "Área fora do piso",
+      "imageUrl": "masks/area-fora-piso.png",
+      "x": 0,
+      "y": 0,
+      "opacity": 1
+    }
+  ],
   "materials": [
     {
       "id": "e29efb48-0e57-424d-b683-d05f929f70a5",
