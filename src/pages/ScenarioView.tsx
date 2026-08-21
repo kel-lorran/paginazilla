@@ -12,6 +12,8 @@ import { GridOverlay } from "../components/canvas/GridOverlay";
 import { AlignmentGuides } from "../components/canvas/AlignmentGuides";
 import { MaterialPanel } from "../components/canvas/MaterialPanel";
 import { IsometricPreview } from "../components/common/IsometricPreview";
+import { TutorialModal, TutorialHelpButton } from "../components/tutorial/TutorialModal";
+import { scenarioTutorialTips } from "../data/tutorialTips";
 import { useElementSize } from "../hooks/useElementSize";
 import { loadScenario } from "../lib/scenarios";
 import { cmToPixels } from "../lib/scale";
@@ -54,6 +56,7 @@ export function ScenarioView() {
     x: null,
     y: null,
   });
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const dragStartRef = useRef<Record<string, Point>>({});
   const piecesRef = useRef<PieceInstance[]>(pieces);
@@ -85,6 +88,17 @@ export function ScenarioView() {
       cancelled = true;
     };
   }, [scenarioId]);
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem("paginazilla:tutorial-seen")) {
+        setTutorialOpen(true);
+        localStorage.setItem("paginazilla:tutorial-seen", "1");
+      }
+    } catch {
+      // localStorage indisponível (ex: navegação privada) — só não mostra automático
+    }
+  }, []);
 
   function buildProgressRecord(): MosaicProgress {
     return {
@@ -500,6 +514,11 @@ export function ScenarioView() {
           Carregar
         </button>
       </div>
+
+      <TutorialHelpButton onClick={() => setTutorialOpen(true)} />
+      {tutorialOpen && (
+        <TutorialModal tips={scenarioTutorialTips} onClose={() => setTutorialOpen(false)} />
+      )}
     </div>
   );
 }
