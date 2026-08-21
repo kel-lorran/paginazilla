@@ -66,9 +66,18 @@ export interface PieceInstance {
   mirrored: boolean;
 }
 
-/** Progresso do usuário final num cenário — o que é salvo localmente (IndexedDB). */
+/**
+ * Progresso do usuário final num cenário — o que é salvo localmente (IndexedDB).
+ * Guarda título/URLs além das peças pra, no futuro, alimentar uma tela inicial
+ * com a lista de paginações salvas (sem precisar reabrir cada cenário pra saber
+ * do que se trata).
+ */
 export interface MosaicProgress {
   scenarioId: string;
+  title: string;
+  scenarioUrl: string;
+  planImageUrl?: string;
+  isometricImageUrl?: string;
   pieces: PieceInstance[];
   updatedAt: number;
 }

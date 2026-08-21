@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useParams } from "react-router-dom";
 import { v4 as uuid } from "uuid";
 import type Konva from "konva";
@@ -8,17 +8,19 @@ import { MaskImage } from "../components/canvas/MaskImage";
 import { Piece, ROTATE_STEP_DEG } from "../components/canvas/Piece";
 import { GroupToolbar } from "../components/canvas/GroupToolbar";
 import { GridOverlay } from "../components/canvas/GridOverlay";
+import { AlignmentGuides } from "../components/canvas/AlignmentGuides";
 import { MaterialPanel } from "../components/canvas/MaterialPanel";
 import { IsometricPreview } from "../components/common/IsometricPreview";
 import { useElementSize } from "../hooks/useElementSize";
 import { loadScenario } from "../lib/scenarios";
 import { cmToPixels } from "../lib/scale";
-import { centerOf, reflectPointHorizontal, rotatePointAround, snapValue } from "../lib/groupTransform";
+import { centerOf, reflectPointHorizontal, rotatePointAround } from "../lib/groupTransform";
+import { snapToNeighbors, type PieceBox } from "../lib/alignmentGuides";
 import { loadProgress, saveProgress } from "../storage/progressStore";
-import type { Material, PieceInstance, Point, Scenario, Viewport } from "../types";
+import type { Material, MosaicProgress, PieceInstance, Point, Scenario, Viewport } from "../types";
 
-const SNAP_THRESHOLD_SCREEN_PX = 10;
-const DEFAULT_GRID_SPACING_CM = 10;
+const SNAP_THRESHOLD_SCREEN_PX = 8;
+const DEFAULT_GRID_SPACING_CM = 25;
 
 export function ScenarioView() {
   const { scenarioId = "" } = useParams();
@@ -31,8 +33,12 @@ export function ScenarioView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [saveLabel, setSaveLabel] = useState("Salvar");
-  const [gridEnabled, setGridEnabled] = useState(true);
+  const [gridEnabled, setGridEnabled] = useState(false);
   const [gridSpacingCm, setGridSpacingCm] = useState(DEFAULT_GRID_SPACING_CM);
+  const [guides, setGuides] = useState<{ x: number | null; y: number | null }>({
+    x: null,
+    y: null,
+  });
 
   const dragStartRef = useRef<Record<string, Point>>({});
 
@@ -58,9 +64,22 @@ export function ScenarioView() {
     };
   }, [scenarioId]);
 
+  function buildProgressRecord(): MosaicProgress {
+    return {
+      scenarioId,
+      title: scenario?.name ?? scenarioId,
+      scenarioUrl: `/cenario/${scenarioId}`,
+      planImageUrl: scenario?.planImageUrl,
+      isometricImageUrl: scenario?.isometricImageUrl,
+      pieces,
+      updatedAt: Date.now(),
+    };
+  }
+
   useEffect(() => {
     if (!scenario) return;
-    saveProgress({ scenarioId, pieces, updatedAt: Date.now() });
+    saveProgress(buildProgressRecord());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenario, scenarioId, pieces]);
 
   useEffect(() => {
@@ -117,11 +136,21 @@ export function ScenarioView() {
   const gridSpacingPx = scenario ? cmToPixels(gridSpacingCm, scenario.scaleCalibration) : 0;
   const snapThresholdPx = SNAP_THRESHOLD_SCREEN_PX / viewport.scale;
 
-  function snapPoint(point: Point): Point {
-    if (!gridEnabled || gridSpacingPx <= 0) return point;
+  const materialById = scenario ? new Map(scenario.materials.map((m) => [m.id, m])) : new Map();
+
+  function pieceBox(piece: PieceInstance): PieceBox | null {
+    const material = materialById.get(piece.materialId);
+    if (!material || !scenario) return null;
+    const halfWidth = cmToPixels(material.realWidthCm, scenario.scaleCalibration) / 2;
+    const halfHeight = cmToPixels(material.realHeightCm, scenario.scaleCalibration) / 2;
     return {
-      x: snapValue(point.x, gridSpacingPx, snapThresholdPx),
-      y: snapValue(point.y, gridSpacingPx, snapThresholdPx),
+      id: piece.id,
+      centerX: piece.x,
+      centerY: piece.y,
+      left: piece.x - halfWidth,
+      right: piece.x + halfWidth,
+      top: piece.y - halfHeight,
+      bottom: piece.y + halfHeight,
     };
   }
 
@@ -136,6 +165,24 @@ export function ScenarioView() {
       if (p) starts[id] = { x: p.x, y: p.y };
     }
     dragStartRef.current = starts;
+  }
+
+  /** Arraste de peça única: gruda no centro/borda de peças vizinhas (guias de alinhamento). */
+  function snapSinglePiece(pieceId: string, x: number, y: number): Point {
+    const dragged = pieces.find((p) => p.id === pieceId);
+    const material = dragged ? materialById.get(dragged.materialId) : null;
+    if (!dragged || !material || !scenario) return { x, y };
+
+    const halfWidth = cmToPixels(material.realWidthCm, scenario.scaleCalibration) / 2;
+    const halfHeight = cmToPixels(material.realHeightCm, scenario.scaleCalibration) / 2;
+    const others = pieces
+      .filter((p) => p.id !== pieceId)
+      .map(pieceBox)
+      .filter((b): b is PieceBox => b !== null);
+
+    const result = snapToNeighbors({ x, y, halfWidth, halfHeight }, others, snapThresholdPx);
+    setGuides({ x: result.guideX, y: result.guideY });
+    return result.point;
   }
 
   function handlePieceDragMove(pieceId: string, x: number, y: number) {
@@ -156,6 +203,7 @@ export function ScenarioView() {
   function handlePieceDragEnd(pieceId: string, x: number, y: number) {
     updatePiece(pieceId, { x, y });
     dragStartRef.current = {};
+    setGuides({ x: null, y: null });
   }
 
   function selectedPieces(): PieceInstance[] {
@@ -199,9 +247,25 @@ export function ScenarioView() {
   }
 
   function handleSaveClick() {
-    saveProgress({ scenarioId, pieces, updatedAt: Date.now() });
+    saveProgress(buildProgressRecord());
     setSaveLabel("Salvo ✓");
     setTimeout(() => setSaveLabel("Salvar"), 1500);
+  }
+
+  async function handleLoadClick() {
+    const progress = await loadProgress(scenarioId);
+    if (!progress) {
+      window.alert("Não há nenhuma versão salva desse cenário ainda.");
+      return;
+    }
+    if (
+      window.confirm(
+        "Isso substitui as peças atuais na tela pela última versão salva. Continuar?",
+      )
+    ) {
+      setPieces(progress.pieces);
+      setSelectedIds(new Set());
+    }
   }
 
   if (error) {
@@ -212,7 +276,6 @@ export function ScenarioView() {
     return <div style={{ padding: 24 }}>Carregando cenário…</div>;
   }
 
-  const materialById = new Map(scenario.materials.map((m) => [m.id, m]));
   const selected = selectedPieces();
   const isGroupSelection = selected.length > 1;
   const groupAnchor = isGroupSelection
@@ -266,11 +329,13 @@ export function ScenarioView() {
                 onSelect={(shiftKey) => handleSelectPiece(piece.id, shiftKey)}
                 onDragStart={() => handlePieceDragStart(piece.id)}
                 onDragMove={(x, y) => {
-                  const snapped = snapPoint({ x, y });
+                  const isGroupDrag = piece.id in dragStartRef.current;
+                  const snapped = isGroupDrag ? { x, y } : snapSinglePiece(piece.id, x, y);
                   handlePieceDragMove(piece.id, snapped.x, snapped.y);
                 }}
                 onDragEnd={(x, y) => {
-                  const snapped = snapPoint({ x, y });
+                  const isGroupDrag = piece.id in dragStartRef.current;
+                  const snapped = isGroupDrag ? { x, y } : snapSinglePiece(piece.id, x, y);
                   handlePieceDragEnd(piece.id, snapped.x, snapped.y);
                 }}
                 onRotate={() =>
@@ -283,6 +348,14 @@ export function ScenarioView() {
               />
             );
           })}
+          <AlignmentGuides
+            guideX={guides.x}
+            guideY={guides.y}
+            viewport={viewport}
+            canvasWidth={size.width}
+            canvasHeight={size.height}
+            inverseScale={1 / viewport.scale}
+          />
           {isGroupSelection && groupAnchor && (
             <GroupToolbar
               x={groupAnchor.x}
@@ -328,7 +401,7 @@ export function ScenarioView() {
           min={1}
           value={gridSpacingCm}
           onChange={(e) => setGridSpacingCm(Math.max(1, Number(e.target.value)))}
-          style={{ width: 48 }}
+          style={{ width: 48, color: "#111827" }}
           disabled={!gridEnabled}
         />
         <span>cm</span>
@@ -338,35 +411,29 @@ export function ScenarioView() {
         <button
           type="button"
           onClick={() => exportStagePng(stageRef.current)}
-          style={{
-            padding: "8px 16px",
-            borderRadius: 8,
-            border: "1px solid #d1d5db",
-            background: "white",
-            color: "#111827",
-            cursor: "pointer",
-          }}
+          style={buttonStyle}
         >
           Exportar PNG
         </button>
-        <button
-          type="button"
-          onClick={handleSaveClick}
-          style={{
-            padding: "8px 16px",
-            borderRadius: 8,
-            border: "1px solid #d1d5db",
-            background: "white",
-            color: "#111827",
-            cursor: "pointer",
-          }}
-        >
+        <button type="button" onClick={handleSaveClick} style={buttonStyle}>
           {saveLabel}
+        </button>
+        <button type="button" onClick={handleLoadClick} style={buttonStyle}>
+          Carregar
         </button>
       </div>
     </div>
   );
 }
+
+const buttonStyle: CSSProperties = {
+  padding: "8px 16px",
+  borderRadius: 8,
+  border: "1px solid #d1d5db",
+  background: "white",
+  color: "#111827",
+  cursor: "pointer",
+};
 
 function exportStagePng(stage: Konva.Stage | null) {
   if (!stage) return;

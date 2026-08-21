@@ -24,9 +24,3 @@ export function centerOf(points: Point[]): Point {
   return { x: sum.x / points.length, y: sum.y / points.length };
 }
 
-/** Arredonda pro múltiplo de `gridSize` mais próximo, só se estiver a até `thresholdPx` de distância — cria o efeito "magnético". */
-export function snapValue(value: number, gridSize: number, thresholdPx: number): number {
-  if (gridSize <= 0) return value;
-  const nearest = Math.round(value / gridSize) * gridSize;
-  return Math.abs(nearest - value) <= thresholdPx ? nearest : value;
-}
