@@ -343,6 +343,7 @@ export function ScenarioView() {
             borderRadius: 8,
             border: "1px solid #d1d5db",
             background: "white",
+            color: "#111827",
             cursor: "pointer",
           }}
         >
@@ -356,6 +357,7 @@ export function ScenarioView() {
             borderRadius: 8,
             border: "1px solid #d1d5db",
             background: "white",
+            color: "#111827",
             cursor: "pointer",
           }}
         >
