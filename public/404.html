@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Paginazilla</title>
+    <script>
+      // GitHub Pages é hospedagem estática — não sabe que "/cenario/xyz" é uma
+      // rota do React Router, então cai aqui. Redireciona pra index.html
+      // preservando o caminho, como querystring, pra ele reabrir a rota certa.
+      // https://github.com/rafgraph/spa-github-pages
+      var segmentCount = 1; // "/paginazilla/" — 1 segmento antes das rotas da SPA
+      var l = window.location;
+      l.replace(
+        l.protocol +
+          "//" +
+          l.hostname +
+          (l.port ? ":" + l.port : "") +
+          l.pathname.split("/").slice(0, 1 + segmentCount).join("/") +
+          "/?/" +
+          l.pathname.slice(1).split("/").slice(segmentCount).join("/").replace(/&/g, "~and~") +
+          (l.search ? "&" + l.search.slice(1).replace(/&/g, "~and~") : "") +
+          l.hash,
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
