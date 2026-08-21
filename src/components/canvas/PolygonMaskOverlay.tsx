@@ -9,7 +9,7 @@ interface PolygonMaskOverlayProps {
 
 /** Bem maior que qualquer planta razoável, pra cobrir a área visível em qualquer zoom/pan. */
 const BOUNDS = 20000;
-const DEFAULT_COLOR = "#e5e7eb";
+const DEFAULT_COLOR = "#000000";
 
 export function PolygonMaskOverlay({ points, opacity, color = DEFAULT_COLOR }: PolygonMaskOverlayProps) {
   if (points.length < 3) return null;

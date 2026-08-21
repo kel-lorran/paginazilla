@@ -1,11 +1,11 @@
 export interface LuminanceMaskOptions {
   /** Raio do desfoque aplicado antes de calcular a transparência — borda suave em vez de corte duro. */
   featherPx?: number;
-  /** Cor usada nas áreas "bloqueadas", como [r, g, b]. Um tom claro se mescla melhor ao fundo do que preto puro. */
+  /** Cor usada nas áreas "bloqueadas", como [r, g, b]. */
   tintColor?: [number, number, number];
 }
 
-const DEFAULT_TINT: [number, number, number] = [229, 231, 235]; // cinza claro, perto do fundo da UI
+const DEFAULT_TINT: [number, number, number] = [0, 0, 0]; // preto
 
 /**
  * Converte uma imagem preto-e-branco numa máscara: preto vira opaco (bloqueia),

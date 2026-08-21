@@ -33,7 +33,7 @@ export function AuthorPage() {
 
   const [maskTool, setMaskTool] = useState<MaskTool>("polygon");
   const [polygonPoints, setPolygonPoints] = useState<Point[]>([]);
-  const [polygonOpacity, setPolygonOpacity] = useState(0.35);
+  const [polygonOpacity, setPolygonOpacity] = useState(0.6);
 
   const [calibratingMaterialId, setCalibratingMaterialId] = useState<string | null>(null);
   const [calibrationShape, setCalibrationShape] = useState<{
