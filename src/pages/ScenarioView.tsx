@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { useParams } from "react-router-dom";
 import { v4 as uuid } from "uuid";
 import type Konva from "konva";
@@ -61,6 +61,7 @@ export function ScenarioView() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const dragStartRef = useRef<Record<string, Point>>({});
+  const loadInputRef = useRef<HTMLInputElement>(null);
   const piecesRef = useRef<PieceInstance[]>(pieces);
   const clipboardRef = useRef<PieceInstance[]>([]);
   const pasteCountRef = useRef(0);
@@ -353,26 +354,54 @@ export function ScenarioView() {
     setSelectedIds(new Set(clones.map((c) => c.id)));
   }
 
+  /** Baixa um .json com o mosaico atual — portável, independe do navegador/dispositivo. */
   function handleSaveClick() {
-    saveProgress(buildProgressRecord());
+    const record = buildProgressRecord();
+    const blob = new Blob([JSON.stringify(record, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `paginazilla-${scenarioId}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
     setSaveLabel("Salvo ✓");
     setTimeout(() => setSaveLabel("Salvar"), 1500);
   }
 
-  async function handleLoadClick() {
-    const progress = await loadProgress(scenarioId);
-    if (!progress) {
-      window.alert("Não há nenhuma versão salva desse cenário ainda.");
+  function handleLoadClick() {
+    loadInputRef.current?.click();
+  }
+
+  async function handleLoadFileSelected(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    let data: Partial<MosaicProgress>;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      window.alert("Não consegui ler esse arquivo — confirme que é um .json exportado pelo Paginazilla.");
       return;
     }
-    if (
-      window.confirm(
-        "Isso substitui as peças atuais na tela pela última versão salva. Continuar?",
-      )
-    ) {
-      setPieces(progress.pieces);
-      setSelectedIds(new Set());
+    if (!Array.isArray(data.pieces)) {
+      window.alert("Arquivo inválido: não parece um mosaico salvo do Paginazilla.");
+      return;
     }
+
+    if (data.scenarioId && data.scenarioId !== scenarioId) {
+      const proceed = window.confirm(
+        `Esse arquivo foi salvo do cenário "${data.title ?? data.scenarioId}", não deste ("${scenario?.name ?? scenarioId}"). As peças podem não corresponder aos materiais daqui. Carregar mesmo assim?`,
+      );
+      if (!proceed) return;
+    } else if (
+      !window.confirm("Isso substitui as peças atuais na tela pelas do arquivo. Continuar?")
+    ) {
+      return;
+    }
+
+    setPieces(data.pieces as PieceInstance[]);
+    setSelectedIds(new Set());
   }
 
   if (error) {
@@ -558,6 +587,13 @@ export function ScenarioView() {
         <button type="button" onClick={handleLoadClick} style={buttonStyle}>
           Carregar
         </button>
+        <input
+          ref={loadInputRef}
+          type="file"
+          accept="application/json"
+          style={{ display: "none" }}
+          onChange={handleLoadFileSelected}
+        />
       </div>
 
       <TutorialHelpButton onClick={() => setTutorialOpen(true)} />
