@@ -1,7 +1,7 @@
 import { Stage, Layer } from "react-konva";
 import type Konva from "konva";
 import type { ReactNode, RefObject } from "react";
-import type { Viewport } from "../../types";
+import type { Point, Viewport } from "../../types";
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
@@ -11,7 +11,8 @@ interface PlanCanvasProps {
   height: number;
   viewport: Viewport;
   onViewportChange: (viewport: Viewport) => void;
-  onBackgroundClick?: () => void;
+  /** Clique no fundo (fora de qualquer peça), já convertido pro espaço de coordenadas da planta. */
+  onBackgroundClick?: (point: Point) => void;
   stageRef: RefObject<Konva.Stage | null>;
   children: ReactNode;
 }
@@ -70,7 +71,13 @@ export function PlanCanvas({
       onWheel={handleWheel}
       onDragEnd={handleDragEnd}
       onMouseDown={(e) => {
-        if (e.target === stageRef.current) onBackgroundClick?.();
+        if (e.target !== stageRef.current || !onBackgroundClick) return;
+        const pointer = e.target.getPointerPosition();
+        if (!pointer) return;
+        onBackgroundClick({
+          x: (pointer.x - viewport.x) / viewport.scale,
+          y: (pointer.y - viewport.y) / viewport.scale,
+        });
       }}
     >
       <Layer>{children}</Layer>

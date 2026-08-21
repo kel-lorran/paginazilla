@@ -24,7 +24,7 @@ export function MaterialPanel({ materials, onAdd }: MaterialPanelProps) {
           />
           <span className={styles.itemName}>{material.name}</span>
           <span className={styles.itemSize}>
-            {material.realWidthCm}×{material.realHeightCm} cm
+            {material.realWidthCm.toFixed(1)}×{material.realHeightCm.toFixed(1)} cm
           </span>
         </button>
       ))}
