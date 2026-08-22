@@ -47,6 +47,11 @@ export function PlanCanvas({
   const selectionEnabled = Boolean(onSelectionRectEnd);
 
   useEffect(() => {
+    const container = stageRef.current?.container();
+    if (container) container.style.touchAction = "none";
+  }, [stageRef]);
+
+  useEffect(() => {
     if (!selectionEnabled) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Shift") setShiftHeld(true);
