@@ -146,7 +146,12 @@ export function PlanCanvas({
     });
   }
 
-  /** Pinça de dois dedos pra zoom + pan simultâneo, só em touch — não afeta mouse/desktop. */
+  /**
+   * Pinça de dois dedos pra zoom + pan simultâneo, só em touch — não afeta
+   * mouse/desktop. Mexe direto no node do Konva (sem passar pelo estado do
+   * React a cada frame) e só sincroniza no fim do gesto — do contrário cada
+   * toque re-renderiza a árvore inteira e o gesto fica travado.
+   */
   function handleTouchMove(e: Konva.KonvaEventObject<TouchEvent>) {
     const touch1 = e.evt.touches[0];
     const touch2 = e.evt.touches[1];
@@ -168,28 +173,32 @@ export function PlanCanvas({
 
     const newCenter = touchCenter(p1, p2);
     const dist = touchDistance(p1, p2);
+    const oldScale = stage.scaleX();
     const pointTo = {
-      x: (newCenter.x - viewport.x) / viewport.scale,
-      y: (newCenter.y - viewport.y) / viewport.scale,
+      x: (newCenter.x - stage.x()) / oldScale,
+      y: (newCenter.y - stage.y()) / oldScale,
     };
-    const newScale = Math.min(
-      MAX_SCALE,
-      Math.max(MIN_SCALE, viewport.scale * (dist / pinch.lastDist)),
-    );
+    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, oldScale * (dist / pinch.lastDist)));
     const dx = newCenter.x - pinch.lastCenter.x;
     const dy = newCenter.y - pinch.lastCenter.y;
 
-    onViewportChange({
-      scale: newScale,
+    stage.scale({ x: newScale, y: newScale });
+    stage.position({
       x: newCenter.x - pointTo.x * newScale + dx,
       y: newCenter.y - pointTo.y * newScale + dy,
     });
+    stage.batchDraw();
 
     pinch.lastDist = dist;
     pinch.lastCenter = newCenter;
   }
 
   function handleTouchEnd() {
+    const stage = stageRef.current;
+    if (pinchRef.current.lastCenter && stage) {
+      // gesto terminou — só agora sincroniza o estado do React com o resultado final
+      onViewportChange({ scale: stage.scaleX(), x: stage.x(), y: stage.y() });
+    }
     pinchRef.current = { lastCenter: null, lastDist: 0 };
   }
 

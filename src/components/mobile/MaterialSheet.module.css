@@ -1,8 +1,4 @@
 .sheet {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
   background: white;
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
@@ -12,10 +8,11 @@
   max-height: 62vh;
   overflow: hidden;
   transition: max-height 0.2s ease;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .sheet.closed {
-  max-height: 96px;
+  max-height: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 .handleRow {

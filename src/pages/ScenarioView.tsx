@@ -16,6 +16,7 @@ import { IsometricPreview } from "../components/common/IsometricPreview";
 import { TutorialModal, TutorialHelpButton } from "../components/tutorial/TutorialModal";
 import { MaterialSheet } from "../components/mobile/MaterialSheet";
 import { MobileActionBar } from "../components/mobile/MobileActionBar";
+import { ZoomControl } from "../components/mobile/ZoomControl";
 import { scenarioTutorialTips } from "../data/tutorialTips";
 import { useElementSize } from "../hooks/useElementSize";
 import { useIsMobileLayout } from "../hooks/useIsMobileLayout";
@@ -455,7 +456,7 @@ export function ScenarioView() {
   return (
     <div
       ref={containerRef}
-      style={{ position: "relative", width: "100%", height: "100vh" }}
+      style={{ position: "relative", width: "100%", height: "100dvh" }}
     >
       {size.width > 0 && (
         <PlanCanvas
@@ -597,13 +598,7 @@ export function ScenarioView() {
         </button>
       )}
 
-      {isMobileLayout ? (
-        showMobileActionBar ? null : (
-          <MaterialSheet materials={scenario.materials} onAdd={handleAddMaterial} />
-        )
-      ) : (
-        <MaterialPanel materials={scenario.materials} onAdd={handleAddMaterial} />
-      )}
+      {!isMobileLayout && <MaterialPanel materials={scenario.materials} onAdd={handleAddMaterial} />}
 
       <div
         style={{
@@ -640,17 +635,18 @@ export function ScenarioView() {
         <span>cm</span>
       </div>
 
-      {!showMobileActionBar && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: isMobileLayout ? 108 : 16,
-            left: 16,
-            display: "flex",
-            gap: 8,
-            flexWrap: "wrap",
-          }}
-        >
+      {isMobileLayout && (
+        <ZoomControl
+          viewport={viewport}
+          onViewportChange={setViewport}
+          canvasWidth={size.width}
+          canvasHeight={size.height}
+          style={{ top: 68, right: 12 }}
+        />
+      )}
+
+      {!isMobileLayout && (
+        <div style={{ position: "absolute", bottom: 16, left: 16, display: "flex", gap: 8 }}>
           <button
             type="button"
             onClick={() => exportStagePng(stageRef.current)}
@@ -666,6 +662,56 @@ export function ScenarioView() {
           </button>
         </div>
       )}
+
+      {isMobileLayout && (
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {!showMobileActionBar && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                padding: "0 16px 10px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => exportStagePng(stageRef.current)}
+                style={buttonStyle}
+              >
+                Exportar PNG
+              </button>
+              <button type="button" onClick={handleSaveClick} style={buttonStyle}>
+                {saveLabel}
+              </button>
+              <button type="button" onClick={handleLoadClick} style={buttonStyle}>
+                Carregar
+              </button>
+            </div>
+          )}
+
+          {showMobileActionBar ? (
+            <MobileActionBar
+              onRotate={handleMobileRotate}
+              onMirror={handleMobileMirror}
+              onDuplicate={handleDuplicateSelected}
+              onDelete={() => deletePieces(selectedIds)}
+            />
+          ) : (
+            <MaterialSheet materials={scenario.materials} onAdd={handleAddMaterial} />
+          )}
+        </div>
+      )}
+
       <input
         ref={loadInputRef}
         type="file"
@@ -673,15 +719,6 @@ export function ScenarioView() {
         style={{ display: "none" }}
         onChange={handleLoadFileSelected}
       />
-
-      {showMobileActionBar && (
-        <MobileActionBar
-          onRotate={handleMobileRotate}
-          onMirror={handleMobileMirror}
-          onDuplicate={handleDuplicateSelected}
-          onDelete={() => deletePieces(selectedIds)}
-        />
-      )}
 
       {!isMobileLayout && <TutorialHelpButton onClick={() => setTutorialOpen(true)} />}
       {tutorialOpen && (

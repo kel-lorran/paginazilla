@@ -1,0 +1,23 @@
+.control {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
+  overflow: hidden;
+}
+
+.button {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: none;
+  font-size: 20px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.button:first-child {
+  border-bottom: 1px solid #edeef1;
+}
