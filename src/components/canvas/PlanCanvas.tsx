@@ -1,10 +1,18 @@
 import { Stage, Layer, Rect } from "react-konva";
 import type Konva from "konva";
-import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { Point, Viewport } from "../../types";
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
+
+function touchDistance(p1: Point, p2: Point): number {
+  return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+}
+
+function touchCenter(p1: Point, p2: Point): Point {
+  return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+}
 
 export interface SelectionRect {
   x1: number;
@@ -43,6 +51,10 @@ export function PlanCanvas({
   const [selectionDrag, setSelectionDrag] = useState<{ start: Point; current: Point } | null>(
     null,
   );
+  const pinchRef = useRef<{ lastCenter: Point | null; lastDist: number }>({
+    lastCenter: null,
+    lastDist: 0,
+  });
 
   const selectionEnabled = Boolean(onSelectionRectEnd);
 
@@ -134,6 +146,53 @@ export function PlanCanvas({
     });
   }
 
+  /** Pinça de dois dedos pra zoom + pan simultâneo, só em touch — não afeta mouse/desktop. */
+  function handleTouchMove(e: Konva.KonvaEventObject<TouchEvent>) {
+    const touch1 = e.evt.touches[0];
+    const touch2 = e.evt.touches[1];
+    const stage = stageRef.current;
+    if (!touch1 || !touch2 || !stage) return;
+
+    e.evt.preventDefault();
+    if (stage.isDragging()) stage.stopDrag();
+
+    const p1 = { x: touch1.clientX, y: touch1.clientY };
+    const p2 = { x: touch2.clientX, y: touch2.clientY };
+    const pinch = pinchRef.current;
+
+    if (!pinch.lastCenter) {
+      pinch.lastCenter = touchCenter(p1, p2);
+      pinch.lastDist = touchDistance(p1, p2);
+      return;
+    }
+
+    const newCenter = touchCenter(p1, p2);
+    const dist = touchDistance(p1, p2);
+    const pointTo = {
+      x: (newCenter.x - viewport.x) / viewport.scale,
+      y: (newCenter.y - viewport.y) / viewport.scale,
+    };
+    const newScale = Math.min(
+      MAX_SCALE,
+      Math.max(MIN_SCALE, viewport.scale * (dist / pinch.lastDist)),
+    );
+    const dx = newCenter.x - pinch.lastCenter.x;
+    const dy = newCenter.y - pinch.lastCenter.y;
+
+    onViewportChange({
+      scale: newScale,
+      x: newCenter.x - pointTo.x * newScale + dx,
+      y: newCenter.y - pointTo.y * newScale + dy,
+    });
+
+    pinch.lastDist = dist;
+    pinch.lastCenter = newCenter;
+  }
+
+  function handleTouchEnd() {
+    pinchRef.current = { lastCenter: null, lastDist: 0 };
+  }
+
   return (
     <Stage
       ref={stageRef}
@@ -149,6 +208,8 @@ export function PlanCanvas({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       <Layer>{children}</Layer>
       <Layer>

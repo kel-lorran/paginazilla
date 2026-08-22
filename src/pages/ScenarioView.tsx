@@ -14,8 +14,11 @@ import { AlignmentGuides } from "../components/canvas/AlignmentGuides";
 import { MaterialPanel } from "../components/canvas/MaterialPanel";
 import { IsometricPreview } from "../components/common/IsometricPreview";
 import { TutorialModal, TutorialHelpButton } from "../components/tutorial/TutorialModal";
+import { MaterialSheet } from "../components/mobile/MaterialSheet";
+import { MobileActionBar } from "../components/mobile/MobileActionBar";
 import { scenarioTutorialTips } from "../data/tutorialTips";
 import { useElementSize } from "../hooks/useElementSize";
+import { useIsMobileLayout } from "../hooks/useIsMobileLayout";
 import { loadScenario } from "../lib/scenarios";
 import { cmToPixels } from "../lib/scale";
 import { centerOf, reflectPointHorizontal, rotatePointAround } from "../lib/groupTransform";
@@ -59,6 +62,8 @@ export function ScenarioView() {
     y: null,
   });
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const isMobileLayout = useIsMobileLayout();
 
   const dragStartRef = useRef<Record<string, Point>>({});
   const loadInputRef = useRef<HTMLInputElement>(null);
@@ -345,6 +350,27 @@ export function ScenarioView() {
     );
   }
 
+  /** Barra de ações mobile — mesma regra do desktop: peça única gira/espelha em torno de si, grupo em torno do conjunto. */
+  function handleMobileRotate() {
+    const selected = selectedPieces();
+    if (selected.length === 1) {
+      const piece = selected[0];
+      updatePiece(piece.id, { rotationDeg: (piece.rotationDeg + ROTATE_STEP_DEG) % 360 });
+    } else {
+      handleGroupRotate();
+    }
+  }
+
+  function handleMobileMirror() {
+    const selected = selectedPieces();
+    if (selected.length === 1) {
+      const piece = selected[0];
+      updatePiece(piece.id, { mirrored: !piece.mirrored });
+    } else {
+      handleGroupMirror();
+    }
+  }
+
   function handleDuplicateSelected() {
     const source = selectedPieces();
     if (source.length === 0 || !scenario) return;
@@ -414,6 +440,7 @@ export function ScenarioView() {
 
   const selected = selectedPieces();
   const isGroupSelection = selected.length > 1;
+  const showMobileActionBar = isMobileLayout && selected.length > 0;
   const selectedBoxes = selected.map(pieceBox).filter((b): b is PieceBox => b !== null);
   // Ancora no topo da bounding box da seleção (não no centroide) — em seleções
   // espalhadas ou com "buracos", o centroide pode cair longe de qualquer peça.
@@ -461,7 +488,7 @@ export function ScenarioView() {
                     instance={piece}
                     widthPx={widthPx}
                     heightPx={heightPx}
-                    showToolbar={!isGroupSelection}
+                    showToolbar={!isGroupSelection && !isMobileLayout}
                     inverseScale={1 / viewport.scale}
                     onRotate={() =>
                       updatePiece(piece.id, {
@@ -474,7 +501,7 @@ export function ScenarioView() {
                   />
                 );
               })}
-              {isGroupSelection && groupAnchor && (
+              {isGroupSelection && groupAnchor && !isMobileLayout && (
                 <GroupToolbar
                   x={groupAnchor.x}
                   y={groupAnchor.y}
@@ -517,7 +544,7 @@ export function ScenarioView() {
                 material={material}
                 widthPx={widthPx}
                 heightPx={heightPx}
-                onSelect={(shiftKey) => handleSelectPiece(piece.id, shiftKey)}
+                onSelect={(shiftKey) => handleSelectPiece(piece.id, shiftKey || multiSelectMode)}
                 onDragStart={() => handlePieceDragStart(piece.id)}
                 onDragMove={(x, y) => {
                   const isGroupDrag = piece.id in dragStartRef.current;
@@ -535,14 +562,54 @@ export function ScenarioView() {
         </PlanCanvas>
       )}
 
-      <IsometricPreview src={scenario.isometricImageUrl} />
-      <MaterialPanel materials={scenario.materials} onAdd={handleAddMaterial} />
+      {!isMobileLayout && <IsometricPreview src={scenario.isometricImageUrl} />}
+
+      {isMobileLayout && (
+        <button
+          type="button"
+          onClick={() => setMultiSelectMode((v) => !v)}
+          style={{
+            position: "absolute",
+            top: 16,
+            left: 16,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "7px 12px",
+            borderRadius: 999,
+            border: `1px solid ${multiSelectMode ? "#2563eb" : "#d1d5db"}`,
+            background: multiSelectMode ? "#eff6ff" : "white",
+            color: multiSelectMode ? "#2563eb" : "#374151",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: multiSelectMode ? "#2563eb" : "#9ca3af",
+            }}
+          />
+          Selecionar várias
+        </button>
+      )}
+
+      {isMobileLayout ? (
+        showMobileActionBar ? null : (
+          <MaterialSheet materials={scenario.materials} onAdd={handleAddMaterial} />
+        )
+      ) : (
+        <MaterialPanel materials={scenario.materials} onAdd={handleAddMaterial} />
+      )}
 
       <div
         style={{
           position: "absolute",
           top: 16,
-          right: 236,
+          right: isMobileLayout ? 12 : 236,
           background: "white",
           border: "1px solid #d1d5db",
           borderRadius: 8,
@@ -573,30 +640,50 @@ export function ScenarioView() {
         <span>cm</span>
       </div>
 
-      <div style={{ position: "absolute", bottom: 16, left: 16, display: "flex", gap: 8 }}>
-        <button
-          type="button"
-          onClick={() => exportStagePng(stageRef.current)}
-          style={buttonStyle}
+      {!showMobileActionBar && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: isMobileLayout ? 108 : 16,
+            left: 16,
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+          }}
         >
-          Exportar PNG
-        </button>
-        <button type="button" onClick={handleSaveClick} style={buttonStyle}>
-          {saveLabel}
-        </button>
-        <button type="button" onClick={handleLoadClick} style={buttonStyle}>
-          Carregar
-        </button>
-        <input
-          ref={loadInputRef}
-          type="file"
-          accept="application/json"
-          style={{ display: "none" }}
-          onChange={handleLoadFileSelected}
-        />
-      </div>
+          <button
+            type="button"
+            onClick={() => exportStagePng(stageRef.current)}
+            style={buttonStyle}
+          >
+            Exportar PNG
+          </button>
+          <button type="button" onClick={handleSaveClick} style={buttonStyle}>
+            {saveLabel}
+          </button>
+          <button type="button" onClick={handleLoadClick} style={buttonStyle}>
+            Carregar
+          </button>
+        </div>
+      )}
+      <input
+        ref={loadInputRef}
+        type="file"
+        accept="application/json"
+        style={{ display: "none" }}
+        onChange={handleLoadFileSelected}
+      />
 
-      <TutorialHelpButton onClick={() => setTutorialOpen(true)} />
+      {showMobileActionBar && (
+        <MobileActionBar
+          onRotate={handleMobileRotate}
+          onMirror={handleMobileMirror}
+          onDuplicate={handleDuplicateSelected}
+          onDelete={() => deletePieces(selectedIds)}
+        />
+      )}
+
+      {!isMobileLayout && <TutorialHelpButton onClick={() => setTutorialOpen(true)} />}
       {tutorialOpen && (
         <TutorialModal tips={scenarioTutorialTips} onClose={() => setTutorialOpen(false)} />
       )}
