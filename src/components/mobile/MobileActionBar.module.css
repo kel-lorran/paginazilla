@@ -35,6 +35,10 @@
   color: #dc2626;
 }
 
+.button:disabled {
+  opacity: 0.35;
+}
+
 .label {
   font-size: 10px;
   font-weight: 600;

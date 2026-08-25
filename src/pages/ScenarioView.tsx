@@ -16,6 +16,7 @@ import { IsometricPreview } from "../components/common/IsometricPreview";
 import { TutorialModal, TutorialHelpButton } from "../components/tutorial/TutorialModal";
 import { MaterialSheet } from "../components/mobile/MaterialSheet";
 import { MobileActionBar } from "../components/mobile/MobileActionBar";
+import { MobileDpad } from "../components/mobile/MobileDpad";
 import { ZoomControl } from "../components/mobile/ZoomControl";
 import { scenarioTutorialTips } from "../data/tutorialTips";
 import { useElementSize } from "../hooks/useElementSize";
@@ -33,6 +34,10 @@ const DEFAULT_GRID_SPACING_CM = 25;
 const ARROW_STEP_FINE_CM = 0.1;
 const ARROW_STEP_COARSE_CM = 1;
 const DUPLICATE_OFFSET_CM = 5;
+const FINE_ROTATE_STEP_DEG = 5;
+const MAX_HISTORY = 50;
+
+const normalizeDeg = (deg: number) => ((deg % 360) + 360) % 360;
 
 function cloneWithOffset(source: PieceInstance[], offsetPx: number): PieceInstance[] {
   return source.map((p) => ({
@@ -71,10 +76,39 @@ export function ScenarioView() {
   const piecesRef = useRef<PieceInstance[]>(pieces);
   const clipboardRef = useRef<PieceInstance[]>([]);
   const pasteCountRef = useRef(0);
+  const undoStackRef = useRef<PieceInstance[][]>([]);
+  const redoStackRef = useRef<PieceInstance[][]>([]);
+  const [, setHistoryTick] = useState(0);
 
   useEffect(() => {
     piecesRef.current = pieces;
   }, [pieces]);
+
+  /** Chame antes de qualquer setPieces que deva virar um passo de desfazer. */
+  function pushHistory() {
+    undoStackRef.current.push(piecesRef.current);
+    if (undoStackRef.current.length > MAX_HISTORY) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    setHistoryTick((t) => t + 1);
+  }
+
+  function undo() {
+    if (undoStackRef.current.length === 0) return;
+    const previous = undoStackRef.current.pop()!;
+    redoStackRef.current.push(piecesRef.current);
+    setPieces(previous);
+    setSelectedIds(new Set());
+    setHistoryTick((t) => t + 1);
+  }
+
+  function redo() {
+    if (redoStackRef.current.length === 0) return;
+    const next = redoStackRef.current.pop()!;
+    undoStackRef.current.push(piecesRef.current);
+    setPieces(next);
+    setSelectedIds(new Set());
+    setHistoryTick((t) => t + 1);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -140,9 +174,29 @@ export function ScenarioView() {
       const target = e.target as HTMLElement | null;
       if (target && ["INPUT", "TEXTAREA"].includes(target.tagName)) return;
 
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+      if (isCtrlOrCmd && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (isCtrlOrCmd && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
       if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.size > 0) {
         e.preventDefault();
         deletePieces(selectedIds);
+        return;
+      }
+
+      if ((e.key === "," || e.key === ".") && selectedIds.size > 0) {
+        e.preventDefault();
+        rotateSelectionBy(e.key === "," ? -FINE_ROTATE_STEP_DEG : FINE_ROTATE_STEP_DEG);
         return;
       }
 
@@ -156,16 +210,10 @@ export function ScenarioView() {
       if (arrowDelta && selectedIds.size > 0 && scenario) {
         e.preventDefault();
         const stepCm = e.shiftKey ? ARROW_STEP_COARSE_CM : ARROW_STEP_FINE_CM;
-        const stepPx = cmToPixels(stepCm, scenario.scaleCalibration);
-        const dx = arrowDelta.x * stepPx;
-        const dy = arrowDelta.y * stepPx;
-        setPieces((prev) =>
-          prev.map((p) => (selectedIds.has(p.id) ? { ...p, x: p.x + dx, y: p.y + dy } : p)),
-        );
+        nudgeSelection(arrowDelta.x, arrowDelta.y, stepCm);
         return;
       }
 
-      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
       if (isCtrlOrCmd && e.key.toLowerCase() === "c" && selectedIds.size > 0) {
         e.preventDefault();
         clipboardRef.current = piecesRef.current.filter((p) => selectedIds.has(p.id));
@@ -181,6 +229,7 @@ export function ScenarioView() {
           scenario.scaleCalibration,
         );
         const clones = cloneWithOffset(clipboardRef.current, offsetPx);
+        pushHistory();
         setPieces((prev) => [...prev, ...clones]);
         setSelectedIds(new Set(clones.map((c) => c.id)));
       }
@@ -202,17 +251,55 @@ export function ScenarioView() {
       rotationDeg: 0,
       mirrored: false,
     };
+    pushHistory();
     setPieces((prev) => [...prev, newPiece]);
     setSelectedIds(new Set([newPiece.id]));
   }
 
   function updatePiece(id: string, patch: Partial<PieceInstance>) {
+    pushHistory();
     setPieces((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
 
   function deletePieces(ids: Set<string>) {
+    pushHistory();
     setPieces((prev) => prev.filter((p) => !ids.has(p.id)));
     setSelectedIds(new Set());
+  }
+
+  /** Nudge por teclado (setas) ou pela cruz mobile — mesmo passo, mesma seleção. */
+  function nudgeSelection(dirX: number, dirY: number, stepCm: number) {
+    if (selectedIds.size === 0 || !scenario) return;
+    pushHistory();
+    const stepPx = cmToPixels(stepCm, scenario.scaleCalibration);
+    const dx = dirX * stepPx;
+    const dy = dirY * stepPx;
+    setPieces((prev) =>
+      prev.map((p) => (selectedIds.has(p.id) ? { ...p, x: p.x + dx, y: p.y + dy } : p)),
+    );
+  }
+
+  /** Gira a seleção sem registrar histórico — usada tick a tick pelo anel de arraste mobile,
+   * que já empurra um único snapshot no início do gesto (onRotateStart). */
+  function applyRotationDelta(deltaDeg: number) {
+    if (selectedIds.size === 0) return;
+    const selected = piecesRef.current.filter((p) => selectedIds.has(p.id));
+    if (selected.length === 0) return;
+    const center = centerOf(selected.map((p) => ({ x: p.x, y: p.y })));
+    setPieces((prev) =>
+      prev.map((p) => {
+        if (!selectedIds.has(p.id)) return p;
+        const rotated = rotatePointAround({ x: p.x, y: p.y }, center, deltaDeg);
+        return { ...p, x: rotated.x, y: rotated.y, rotationDeg: normalizeDeg(p.rotationDeg + deltaDeg) };
+      }),
+    );
+  }
+
+  /** Girar por um passo discreto (botão, atalho de vírgula/ponto) — um único passo de histórico. */
+  function rotateSelectionBy(deltaDeg: number) {
+    if (selectedIds.size === 0) return;
+    pushHistory();
+    applyRotationDelta(deltaDeg);
   }
 
   function handleSelectPiece(id: string, shiftKey: boolean) {
@@ -260,6 +347,7 @@ export function ScenarioView() {
   }
 
   function handlePieceDragStart(pieceId: string) {
+    pushHistory();
     if (!selectedIds.has(pieceId) || selectedIds.size <= 1) {
       dragStartRef.current = {};
       return;
@@ -306,7 +394,9 @@ export function ScenarioView() {
   }
 
   function handlePieceDragEnd(pieceId: string, x: number, y: number) {
-    updatePiece(pieceId, { x, y });
+    // Não usa updatePiece aqui de propósito: o histórico já foi empurrado em
+    // handlePieceDragStart (início do gesto), então isto só commita a posição final.
+    setPieces((prev) => prev.map((p) => (p.id === pieceId ? { ...p, x, y } : p)));
     dragStartRef.current = {};
     setGuides({ x: null, y: null });
   }
@@ -315,27 +405,15 @@ export function ScenarioView() {
     return pieces.filter((p) => selectedIds.has(p.id));
   }
 
+  /** Gira em torno do centro da seleção — pra uma peça só, isso equivale a girar em torno dela mesma. */
   function handleGroupRotate() {
-    const selected = selectedPieces();
-    if (selected.length === 0) return;
-    const center = centerOf(selected.map((p) => ({ x: p.x, y: p.y })));
-    setPieces((prev) =>
-      prev.map((p) => {
-        if (!selectedIds.has(p.id)) return p;
-        const rotated = rotatePointAround({ x: p.x, y: p.y }, center, ROTATE_STEP_DEG);
-        return {
-          ...p,
-          x: rotated.x,
-          y: rotated.y,
-          rotationDeg: (p.rotationDeg + ROTATE_STEP_DEG) % 360,
-        };
-      }),
-    );
+    rotateSelectionBy(ROTATE_STEP_DEG);
   }
 
   function handleGroupMirror() {
     const selected = selectedPieces();
     if (selected.length === 0) return;
+    pushHistory();
     const center = centerOf(selected.map((p) => ({ x: p.x, y: p.y })));
     setPieces((prev) =>
       prev.map((p) => {
@@ -351,15 +429,9 @@ export function ScenarioView() {
     );
   }
 
-  /** Barra de ações mobile — mesma regra do desktop: peça única gira/espelha em torno de si, grupo em torno do conjunto. */
+  /** Barra de ações mobile — rotação usa a mesma regra de peça única/grupo do botão de desktop. */
   function handleMobileRotate() {
-    const selected = selectedPieces();
-    if (selected.length === 1) {
-      const piece = selected[0];
-      updatePiece(piece.id, { rotationDeg: (piece.rotationDeg + ROTATE_STEP_DEG) % 360 });
-    } else {
-      handleGroupRotate();
-    }
+    rotateSelectionBy(ROTATE_STEP_DEG);
   }
 
   function handleMobileMirror() {
@@ -377,6 +449,7 @@ export function ScenarioView() {
     if (source.length === 0 || !scenario) return;
     const offsetPx = cmToPixels(DUPLICATE_OFFSET_CM, scenario.scaleCalibration);
     const clones = cloneWithOffset(source, offsetPx);
+    pushHistory();
     setPieces((prev) => [...prev, ...clones]);
     setSelectedIds(new Set(clones.map((c) => c.id)));
   }
@@ -427,6 +500,7 @@ export function ScenarioView() {
       return;
     }
 
+    pushHistory();
     setPieces(data.pieces as PieceInstance[]);
     setSelectedIds(new Set());
   }
@@ -442,6 +516,8 @@ export function ScenarioView() {
   const selected = selectedPieces();
   const isGroupSelection = selected.length > 1;
   const showMobileActionBar = isMobileLayout && selected.length > 0;
+  const canUndo = undoStackRef.current.length > 0;
+  const canRedo = redoStackRef.current.length > 0;
   const selectedBoxes = selected.map(pieceBox).filter((b): b is PieceBox => b !== null);
   // Ancora no topo da bounding box da seleção (não no centroide) — em seleções
   // espalhadas ou com "buracos", o centroide pode cair longe de qualquer peça.
@@ -491,11 +567,7 @@ export function ScenarioView() {
                     heightPx={heightPx}
                     showToolbar={!isGroupSelection && !isMobileLayout}
                     inverseScale={1 / viewport.scale}
-                    onRotate={() =>
-                      updatePiece(piece.id, {
-                        rotationDeg: (piece.rotationDeg + ROTATE_STEP_DEG) % 360,
-                      })
-                    }
+                    onRotate={() => rotateSelectionBy(ROTATE_STEP_DEG)}
                     onMirror={() => updatePiece(piece.id, { mirrored: !piece.mirrored })}
                     onDuplicate={handleDuplicateSelected}
                     onDelete={() => deletePieces(new Set([piece.id]))}
@@ -645,8 +717,37 @@ export function ScenarioView() {
         />
       )}
 
+      {showMobileActionBar && (
+        <MobileDpad
+          onNudge={(dx, dy) => nudgeSelection(dx, dy, ARROW_STEP_FINE_CM)}
+          onRotateStart={pushHistory}
+          onRotateDelta={applyRotationDelta}
+          style={{ position: "absolute", right: 12, bottom: "calc(84px + env(safe-area-inset-bottom, 0px))" }}
+        />
+      )}
+
       {!isMobileLayout && (
         <div style={{ position: "absolute", bottom: 16, left: 16, display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!canUndo}
+            title="Desfazer (Ctrl+Z)"
+            aria-label="Desfazer"
+            style={{ ...buttonStyle, opacity: canUndo ? 1 : 0.4, cursor: canUndo ? "pointer" : "default" }}
+          >
+            ↶
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={!canRedo}
+            title="Refazer (Ctrl+Shift+Z)"
+            aria-label="Refazer"
+            style={{ ...buttonStyle, opacity: canRedo ? 1 : 0.4, cursor: canRedo ? "pointer" : "default" }}
+          >
+            ↷
+          </button>
           <button
             type="button"
             onClick={() => exportStagePng(stageRef.current)}
@@ -701,6 +802,10 @@ export function ScenarioView() {
 
           {showMobileActionBar ? (
             <MobileActionBar
+              onUndo={undo}
+              onRedo={redo}
+              canUndo={canUndo}
+              canRedo={canRedo}
               onRotate={handleMobileRotate}
               onMirror={handleMobileMirror}
               onDuplicate={handleDuplicateSelected}

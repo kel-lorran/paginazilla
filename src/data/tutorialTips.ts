@@ -18,7 +18,15 @@ export const scenarioTutorialTips: TutorialTip[] = [
   },
   {
     title: "Rotacionar, espelhar, duplicar, excluir",
-    body: "Com a peça (ou grupo) selecionado, aparece uma mini barra: ⟳ rotaciona, ⇄ espelha, ⧉ duplica, ✕ remove.",
+    body: "Com a peça (ou grupo) selecionado, aparece uma mini barra: ⟳ rotaciona, ⇄ espelha, ⧉ duplica, ✕ remove. Vírgula e ponto giram em passos menores (5°), pra ajustes finos.",
+  },
+  {
+    title: "Desfazer e refazer",
+    body: "Ctrl+Z desfaz, Ctrl+Shift+Z (ou Ctrl+Y) refaz. No celular, os botões ↶ ↷ aparecem na barra de ações.",
+  },
+  {
+    title: "Cruz de navegação (mobile)",
+    body: "Com uma peça selecionada, uma cruz aparece no canto inferior direito: os triângulos movem, e arrastar o círculo ao redor do anel gira em passos de 5°.",
   },
   {
     title: "Copiar e colar",
