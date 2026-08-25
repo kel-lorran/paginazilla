@@ -1,33 +1,54 @@
 import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import styles from "./MobileDpad.module.css";
 
-const RING_SIZE = 84;
-const RING_RADIUS = 38;
-const RING_CENTER = RING_SIZE / 2;
+// Coordenadas no espaço do viewBox (não em px de tela) — ver MobileDpad.module.css pro tamanho real.
+const VIEW_MIN_X = -6;
+const VIEW_MIN_Y = -10;
+const VIEW_W = 128;
+const VIEW_H = 116;
+const CENTER = 60;
+const ARC_RADIUS = 58;
+const MAX_ANGLE_DEG = 90;
 const SNAP_STEP_DEG = 5;
 
 interface MobileDpadProps {
   /** dx/dy valem -1, 0 ou 1 — quem chama decide o passo em cm. */
   onNudge: (dx: number, dy: number) => void;
-  /** Chamado uma vez no início do arraste do anel — é onde o histórico de desfazer deve ser empurrado. */
+  /** Chamado uma vez no início do arraste do satélite — é onde o histórico de desfazer deve ser empurrado. */
   onRotateStart: () => void;
   /** Chamado a cada incremento de 5° durante o arraste (delta relativo, já quantizado). */
   onRotateDelta: (deltaDeg: number) => void;
   style?: CSSProperties;
 }
 
-function angleFromPointer(el: HTMLElement, clientX: number, clientY: number): number {
-  const rect = el.getBoundingClientRect();
-  const dx = clientX - (rect.left + rect.width / 2);
-  const dy = clientY - (rect.top + rect.height / 2);
-  let deg = (Math.atan2(dx, -dy) * 180) / Math.PI;
-  if (deg < 0) deg += 360;
-  return deg;
+function clampAngle(deg: number): number {
+  return Math.max(-MAX_ANGLE_DEG, Math.min(MAX_ANGLE_DEG, deg));
 }
 
-/** Cruz flutuante mobile: 4 triângulos pra mover (toque) + anel de arraste pra girar, com gap magnético de 5°. */
+/** Ângulo do ponteiro relativo ao centro do diamante, em graus — 0 = topo, sentido horário positivo. */
+function angleFromPointer(svg: SVGSVGElement, clientX: number, clientY: number): number {
+  const rect = svg.getBoundingClientRect();
+  const centerScreenX = rect.left + ((CENTER - VIEW_MIN_X) / VIEW_W) * rect.width;
+  const centerScreenY = rect.top + ((CENTER - VIEW_MIN_Y) / VIEW_H) * rect.height;
+  const dx = clientX - centerScreenX;
+  const dy = clientY - centerScreenY;
+  return (Math.atan2(dx, -dy) * 180) / Math.PI;
+}
+
+function satelliteTransform(angleDeg: number): string {
+  const rad = (angleDeg * Math.PI) / 180;
+  const x = CENTER + ARC_RADIUS * Math.sin(rad);
+  const y = CENTER - ARC_RADIUS * Math.cos(rad);
+  return `translate(${x},${y}) rotate(${angleDeg})`;
+}
+
+/**
+ * Cruz flutuante mobile: diamante único (4 triângulos facetados, toque em cada um pra mover)
+ * + satélite em losango que desliza por um arco de até 180° (trava nas pontas) pra girar,
+ * com gap magnético de 5°.
+ */
 export function MobileDpad({ onNudge, onRotateStart, onRotateDelta, style }: MobileDpadProps) {
-  const ringRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const draggingRef = useRef(false);
   const lastAngleRef = useRef(0);
   const accumulatedRef = useRef(0);
@@ -35,34 +56,35 @@ export function MobileDpad({ onNudge, onRotateStart, onRotateDelta, style }: Mob
   const [handleAngle, setHandleAngle] = useState(0);
   const [dragging, setDragging] = useState(false);
 
-  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+  function handlePointerDown(e: ReactPointerEvent<SVGCircleElement>) {
     e.preventDefault();
-    const el = ringRef.current;
-    if (!el) return;
-    el.setPointerCapture(e.pointerId);
+    const svg = svgRef.current;
+    if (!svg) return;
+    svg.setPointerCapture(e.pointerId);
     draggingRef.current = true;
     accumulatedRef.current = 0;
     appliedRef.current = 0;
-    const angle = angleFromPointer(el, e.clientX, e.clientY);
-    lastAngleRef.current = angle;
-    setHandleAngle(angle);
+    lastAngleRef.current = angleFromPointer(svg, e.clientX, e.clientY);
+    setHandleAngle(0);
     setDragging(true);
     onRotateStart();
   }
 
-  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+  function handlePointerMove(e: ReactPointerEvent<SVGSVGElement>) {
     if (!draggingRef.current) return;
-    const el = ringRef.current;
-    if (!el) return;
-    const angle = angleFromPointer(el, e.clientX, e.clientY);
-    let delta = angle - lastAngleRef.current;
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rawAngle = angleFromPointer(svg, e.clientX, e.clientY);
+    let delta = rawAngle - lastAngleRef.current;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
-    lastAngleRef.current = angle;
+    lastAngleRef.current = rawAngle;
     accumulatedRef.current += delta;
-    setHandleAngle(angle);
 
-    const snappedTotal = Math.round(accumulatedRef.current / SNAP_STEP_DEG) * SNAP_STEP_DEG;
+    const clamped = clampAngle(accumulatedRef.current);
+    setHandleAngle(clamped);
+
+    const snappedTotal = Math.round(clamped / SNAP_STEP_DEG) * SNAP_STEP_DEG;
     const stepDelta = snappedTotal - appliedRef.current;
     if (stepDelta !== 0) {
       appliedRef.current = snappedTotal;
@@ -76,73 +98,72 @@ export function MobileDpad({ onNudge, onRotateStart, onRotateDelta, style }: Mob
     setHandleAngle(0);
   }
 
-  const rad = (handleAngle * Math.PI) / 180;
-  const handleX = RING_CENTER + RING_RADIUS * Math.sin(rad);
-  const handleY = RING_CENTER - RING_RADIUS * Math.cos(rad);
-
   return (
     <div className={styles.wrap} style={style}>
-      <div
-        ref={ringRef}
-        className={styles.ring}
-        onPointerDown={handlePointerDown}
+      <svg
+        ref={svgRef}
+        className={styles.svg}
+        viewBox={`${VIEW_MIN_X} ${VIEW_MIN_Y} ${VIEW_W} ${VIEW_H}`}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
-        <button
-          type="button"
-          className={`${styles.hit} ${styles.hitUp}`}
+        <path className={styles.arcPath} d="M 2 60 A 58 58 0 0 1 118 60" />
+        <circle className={styles.arcTick} cx="2" cy="60" r="2.2" />
+        <circle className={styles.arcTick} cx="118" cy="60" r="2.2" />
+
+        <polygon
+          className={styles.facetUp}
+          points="44,44 76,44 60,20"
+          role="button"
           aria-label="Mover pra cima"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onNudge(0, -1);
-          }}
-        >
-          <span className={`${styles.tri} ${styles.triUp}`} />
-        </button>
-        <button
-          type="button"
-          className={`${styles.hit} ${styles.hitDown}`}
-          aria-label="Mover pra baixo"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onNudge(0, 1);
-          }}
-        >
-          <span className={`${styles.tri} ${styles.triDown}`} />
-        </button>
-        <button
-          type="button"
-          className={`${styles.hit} ${styles.hitLeft}`}
-          aria-label="Mover pra esquerda"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onNudge(-1, 0);
-          }}
-        >
-          <span className={`${styles.tri} ${styles.triLeft}`} />
-        </button>
-        <button
-          type="button"
-          className={`${styles.hit} ${styles.hitRight}`}
-          aria-label="Mover pra direita"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onNudge(1, 0);
-          }}
-        >
-          <span className={`${styles.tri} ${styles.triRight}`} />
-        </button>
-        <div
-          className={dragging ? styles.handle : `${styles.handle} ${styles.handleAnimated}`}
-          style={{ top: handleY, left: handleX }}
+          onClick={() => onNudge(0, -1)}
         />
-      </div>
+        <polygon
+          className={styles.facetRight}
+          points="76,44 76,76 100,60"
+          role="button"
+          aria-label="Mover pra direita"
+          onClick={() => onNudge(1, 0)}
+        />
+        <polygon
+          className={styles.facetDown}
+          points="44,76 76,76 60,100"
+          role="button"
+          aria-label="Mover pra baixo"
+          onClick={() => onNudge(0, 1)}
+        />
+        <polygon
+          className={styles.facetLeft}
+          points="44,44 44,76 20,60"
+          role="button"
+          aria-label="Mover pra esquerda"
+          onClick={() => onNudge(-1, 0)}
+        />
+        <rect className={styles.core} x="44" y="44" width="32" height="32" />
+
+        <g
+          className={dragging ? styles.satellite : `${styles.satellite} ${styles.satelliteAnimated}`}
+          transform={satelliteTransform(handleAngle)}
+        >
+          <polygon className={styles.satA} points="0,-6 0,6 -13,0" />
+          <polygon className={styles.satB} points="0,-6 0,6 13,0" />
+          <line className={styles.satDiv} x1="0" y1="-6" x2="0" y2="6" />
+          {/* área de toque maior que o desenho, só pra facilitar segurar o satélite */}
+          <circle
+            className={styles.satHit}
+            cx="0"
+            cy="0"
+            r="16"
+            onPointerDown={handlePointerDown}
+            aria-label="Girar (arraste)"
+            role="slider"
+            aria-valuemin={-MAX_ANGLE_DEG}
+            aria-valuemax={MAX_ANGLE_DEG}
+            aria-valuenow={Math.round(handleAngle)}
+          />
+        </g>
+      </svg>
     </div>
   );
 }

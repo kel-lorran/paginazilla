@@ -1,88 +1,79 @@
 .wrap {
   position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
-.ring {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  position: relative;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.3);
+.svg {
+  width: 118px;
+  height: 107px;
+  overflow: visible;
   touch-action: none;
 }
 
-.hit {
-  position: absolute;
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.hitUp {
-  top: 4px;
-  left: 28px;
-}
-.hitDown {
-  bottom: 4px;
-  left: 28px;
-}
-.hitLeft {
-  left: 4px;
-  top: 28px;
-}
-.hitRight {
-  right: 4px;
-  top: 28px;
-}
-
-.tri {
-  width: 0;
-  height: 0;
-}
-.triUp {
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-bottom: 9px solid rgba(17, 24, 39, 0.75);
-}
-.triDown {
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 9px solid rgba(17, 24, 39, 0.75);
-}
-.triLeft {
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-  border-right: 9px solid rgba(17, 24, 39, 0.75);
-}
-.triRight {
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-  border-left: 9px solid rgba(17, 24, 39, 0.75);
-}
-
-.handle {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #2563eb;
-  border: 2px solid white;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+.arcPath {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 2;
+  stroke-linecap: round;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.35));
   pointer-events: none;
-  transform: translate(-50%, -50%);
 }
-.handleAnimated {
-  transition: top 0.18s ease, left 0.18s ease;
+.arcTick {
+  fill: rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.3));
+  pointer-events: none;
+}
+
+/* Diamante facetado — luz vinda de cima-esquerda, sem sombra projetada por fora. */
+.facetUp,
+.facetRight,
+.facetDown,
+.facetLeft {
+  cursor: pointer;
+}
+.facetUp {
+  fill: #3a3a3a;
+}
+.facetUp:active {
+  fill: #4a4a4a;
+}
+.facetLeft {
+  fill: #262626;
+}
+.facetLeft:active {
+  fill: #363636;
+}
+.facetRight {
+  fill: #141414;
+}
+.facetRight:active {
+  fill: #242424;
+}
+.facetDown {
+  fill: #050505;
+}
+.facetDown:active {
+  fill: #151515;
+}
+.core {
+  fill: #f4f2ee;
+  pointer-events: none;
+}
+
+.satelliteAnimated {
+  transition: transform 0.18s ease;
+}
+.satA {
+  fill: #2e2e2e;
+}
+.satB {
+  fill: #101010;
+}
+.satDiv {
+  stroke: #f4f2ee;
+  stroke-width: 1.4;
+}
+.satHit {
+  fill: rgba(0, 0, 0, 0.001);
+  cursor: grab;
+  touch-action: none;
 }
