@@ -2,12 +2,13 @@ import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointer
 import styles from "./MobileDpad.module.css";
 
 // Coordenadas no espaço do viewBox (não em px de tela) — ver MobileDpad.module.css pro tamanho real.
-const VIEW_MIN_X = -6;
-const VIEW_MIN_Y = -10;
-const VIEW_W = 128;
-const VIEW_H = 116;
+const VIEW_MIN_X = -10;
+const VIEW_MIN_Y = -18;
+const VIEW_W = 140;
+const VIEW_H = 124;
 const CENTER = 60;
-const ARC_RADIUS = 58;
+// Raio do arco maior que o do diamante (raio 40) — sobra pro satélite (60% maior) não colar na seta de cima.
+const ARC_RADIUS = 66;
 const MAX_ANGLE_DEG = 90;
 const SNAP_STEP_DEG = 5;
 
@@ -108,9 +109,9 @@ export function MobileDpad({ onNudge, onRotateStart, onRotateDelta, style }: Mob
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
-        <path className={styles.arcPath} d="M 2 60 A 58 58 0 0 1 118 60" />
-        <circle className={styles.arcTick} cx="2" cy="60" r="2.2" />
-        <circle className={styles.arcTick} cx="118" cy="60" r="2.2" />
+        <path className={styles.arcPath} d="M -6 60 A 66 66 0 0 1 126 60" />
+        <circle className={styles.arcTick} cx="-6" cy="60" r="2.2" />
+        <circle className={styles.arcTick} cx="126" cy="60" r="2.2" />
 
         <polygon
           className={styles.facetUp}
@@ -146,15 +147,15 @@ export function MobileDpad({ onNudge, onRotateStart, onRotateDelta, style }: Mob
           className={dragging ? styles.satellite : `${styles.satellite} ${styles.satelliteAnimated}`}
           transform={satelliteTransform(handleAngle)}
         >
-          <polygon className={styles.satA} points="0,-6 0,6 -13,0" />
-          <polygon className={styles.satB} points="0,-6 0,6 13,0" />
-          <line className={styles.satDiv} x1="0" y1="-6" x2="0" y2="6" />
+          <polygon className={styles.satA} points="0,-9.6 0,9.6 -20.8,0" />
+          <polygon className={styles.satB} points="0,-9.6 0,9.6 20.8,0" />
+          <line className={styles.satDiv} x1="0" y1="-9.6" x2="0" y2="9.6" />
           {/* área de toque maior que o desenho, só pra facilitar segurar o satélite */}
           <circle
             className={styles.satHit}
             cx="0"
             cy="0"
-            r="16"
+            r="22"
             onPointerDown={handlePointerDown}
             aria-label="Girar (arraste)"
             role="slider"

@@ -31,32 +31,36 @@ export function PieceOutline({
   onDuplicate,
   onDelete,
 }: PieceOutlineProps) {
+  const halfW = widthPx / 2;
+  const halfH = heightPx / 2;
+  const rad = (instance.rotationDeg * Math.PI) / 180;
+  // Topo da caixa já rotacionada, no espaço da planta — mantém a toolbar acima
+  // da peça mesmo com bastante rotação aplicada (antes ela girava junto do
+  // contorno e podia acabar sobreposta à própria peça).
+  const topOffsetY = -(halfW * Math.abs(Math.sin(rad)) + halfH * Math.abs(Math.cos(rad)));
+
   return (
-    <Group x={instance.x} y={instance.y} rotation={instance.rotationDeg}>
-      <Rect
-        width={widthPx}
-        height={heightPx}
-        offsetX={widthPx / 2}
-        offsetY={heightPx / 2}
-        stroke="#2563eb"
-        strokeWidth={2 * inverseScale}
-        dash={[6 * inverseScale, 4 * inverseScale]}
-        listening={false}
-      />
+    <>
+      <Group x={instance.x} y={instance.y} rotation={instance.rotationDeg}>
+        <Rect
+          width={widthPx}
+          height={heightPx}
+          offsetX={halfW}
+          offsetY={halfH}
+          stroke="#2563eb"
+          strokeWidth={2 * inverseScale}
+          dash={[6 * inverseScale, 4 * inverseScale]}
+          listening={false}
+        />
+      </Group>
       {showToolbar && (
-        <Group
-          x={widthPx / 2}
-          y={-heightPx / 2}
-          rotation={-instance.rotationDeg}
-          scaleX={inverseScale}
-          scaleY={inverseScale}
-        >
+        <Group x={instance.x} y={instance.y + topOffsetY} scaleX={inverseScale} scaleY={inverseScale}>
           <ToolbarButton index={0} label="⟳" onClick={onRotate} />
           <ToolbarButton index={1} label="⇄" onClick={onMirror} />
           <ToolbarButton index={2} label="⧉" onClick={onDuplicate} />
           <ToolbarButton index={3} label="✕" onClick={onDelete} variant="danger" />
         </Group>
       )}
-    </Group>
+    </>
   );
 }
